@@ -232,3 +232,19 @@ input[type="number"], select {
   .tabs { display: flex; width: 100%; }
   .tabs button { flex: 1; padding: 8px 6px; }
 }
+
+.row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.results .remove {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font: inherit;
+  font-size: .85rem;
+  line-height: 1;
+  color: var(--muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.results .remove:hover { color: var(--err); border-color: var(--border); }

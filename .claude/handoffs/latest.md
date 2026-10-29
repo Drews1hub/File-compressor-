@@ -7,6 +7,7 @@
 - Three tabs: **Compress** (goal = Fit a size in MB/KB with presets, Pick a strength Light/Balanced/Strong, or Shrink by %; More options: photo format auto/jpg/webp, photo max side, video max res, remove sound), **Convert** (global "Convert to" select, or per-file picker), **Zip** (ZIP or TAR.GZ, keeps dropped folder structure, `js/archive.js`).
 - **Tools** tab (`js/tools.js`, pdf-lib vendored and lazy-loaded): trim video/audio (exact cut by default, optional quick stream-copy cut), merge PDFs (reorderable list), split PDF (every page / ranges), photos → one PDF (fit/A4/Letter), rotate/flip/resize photos, open ZIP/TAR.GZ. Inspired by tangerineformac.com (Mac app): its file tools, not its radial-wheel UI.
 - "Download all as ZIP" + "Clear list" under the tabs; settings saved in localStorage.
+- Every result row has Cancel (any job; non-ffmpeg jobs stop at their next progress update, ffmpeg jobs restart the engine) and ✕ to remove it from the list.
 - Feature set modelled on compress2go.com (features only; own names, wording, layout, colors — user asked not to copy so closely it could cause trouble).
 - Compress: images → JPEG (incl. HEIC via heic2any, TIFF via ffmpeg); video → H.264 MP4 at computed bitrate, ≤30 fps, auto-downscale, `superfast` preset, up to 3 retries; audio → MP3; PDF rasterize; Office media shrink; text split; other → zip.
 - Convert: image ↔ jpg/png/webp/gif/bmp/tiff/pdf; video ↔ mp4/webm/mov/mkv/avi/gif + audio extract; audio ↔ mp3/wav/m4a/ogg/flac/opus; PDF → jpg/png (zip) / txt. Stream copy when codecs fit.

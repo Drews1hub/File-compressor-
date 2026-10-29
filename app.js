@@ -75,12 +75,15 @@ let queue = Promise.resolve();
 let running = null;
 
 function enqueue(row, run) {
+  // A fresh ticket per job, so a cancelled job that's still queued can't run after the row is restarted.
+  const ticket = {};
+  row.ticket = ticket;
   row.cancelled = false;
   row.setStatus('Waiting…');
   row.cancelBtn.hidden = false;
   row.li.dataset.busy = '';
   queue = queue.then(async () => {
-    if (row.cancelled) return;
+    if (row.cancelled || row.ticket !== ticket) return;
     running = row;
     try { await row.work(run); } finally { running = null; }
   });
@@ -99,7 +102,13 @@ function updateBulk() {
 function makeRow(file) {
   const li = document.createElement('li');
   li.innerHTML = `
-    <div class="row-head"><div class="name"></div><button type="button" class="cancel" hidden>Cancel</button></div>
+    <div class="row-head">
+      <div class="name"></div>
+      <div class="row-actions">
+        <button type="button" class="cancel" hidden>Cancel</button>
+        <button type="button" class="remove" aria-label="Remove from list" title="Remove from list">✕</button>
+      </div>
+    </div>
     <div class="picker" hidden></div>
     <div class="status"></div>
     <progress hidden></progress>
@@ -118,8 +127,6 @@ function makeRow(file) {
     li,
     cancelBtn,
     cancelled: false,
-    // Only ffmpeg jobs can be stopped part-way; everything else is quick enough to just finish.
-    stoppable: ['video', 'audio'].includes(kindOf(file)),
     setStatus(msg, cls = '') { status.textContent = msg; status.className = `status ${cls}`; },
     progress(msg, frac) {
       status.textContent = msg;
@@ -139,10 +146,15 @@ function makeRow(file) {
       updateBulk();
     },
     // Wraps a unit of work with the shared busy / done / error handling.
+    // Every job reports progress often, so a cancel takes effect at its next progress update.
     async work(fn) {
-      cancelBtn.hidden = !row.stoppable;
       try {
-        const { outputs, note: text, summary } = await fn((msg, frac) => row.progress(msg, frac));
+        const res = await fn((msg, frac) => {
+          if (row.cancelled) throw new Error('Cancelled.');
+          row.progress(msg, frac);
+        });
+        if (row.cancelled) throw new Error('Cancelled.');
+        const { outputs, note: text, summary } = res;
         row.setStatus(summary, 'ok');
         row.setNote(text);
         row.addDownloads(outputs);
@@ -157,15 +169,29 @@ function makeRow(file) {
     },
   };
 
-  cancelBtn.addEventListener('click', () => {
+  // Stops this row's job: a waiting job is skipped, a running one stops at its next step
+  // (video and audio stop at once, because the converter engine is restarted).
+  row.cancel = () => {
+    if (!('busy' in li.dataset)) return;
     row.cancelled = true;
     cancelBtn.hidden = true;
-    if (running === row) cancelEngine();
-    else {
+    if (running === row) {
+      row.setStatus('Cancelling…', 'err');
+      cancelEngine();
+    } else {
       row.setStatus('Cancelled.', 'err');
       delete li.dataset.busy;
       li.querySelectorAll('.picker select, .picker button').forEach((el) => { el.disabled = false; });
     }
+  };
+  cancelBtn.addEventListener('click', row.cancel);
+
+  li.querySelector('.remove').addEventListener('click', () => {
+    row.cancel();
+    li.querySelectorAll('.downloads a').forEach((a) => URL.revokeObjectURL(a.href));
+    li.remove();
+    allOutputs = allOutputs.filter((o) => o.li !== li);
+    updateBulk();
   });
   return row;
 }
