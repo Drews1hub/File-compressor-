@@ -296,25 +296,26 @@ function convertFile(file) {
 
   const picker = row.li.querySelector('.picker');
   picker.hidden = false;
-  picker.innerHTML = '<span>Convert to</span> <select></select> <input type="text" class="book-title" placeholder="Book title (optional)" autocomplete="off" hidden> <button type="button">Convert</button>';
+  picker.innerHTML = '<span>Convert to</span> <select></select> <input type="text" class="book-title" placeholder="Book title (optional)" autocomplete="off" hidden> <input type="text" class="book-title book-author" placeholder="Author (optional)" autocomplete="off" hidden> <button type="button">Convert</button>';
   const select = picker.querySelector('select');
   const button = picker.querySelector('button');
-  const titleBox = picker.querySelector('.book-title');
+  const titleBox = picker.querySelector('.book-title:not(.book-author)');
+  const authorBox = picker.querySelector('.book-author');
   for (const f of formats) select.add(new Option(FORMAT_LABELS[f], f));
-  // Audiobooks take a title, which names the file and is stored in it.
-  const showTitle = () => { titleBox.hidden = select.value !== 'm4b'; };
+  // Audiobooks take a title, which names the file and is stored in it, and an author.
+  const showTitle = () => { titleBox.hidden = authorBox.hidden = select.value !== 'm4b'; };
   select.addEventListener('change', showTitle);
 
   const start = () => {
     const to = select.value;
-    button.disabled = select.disabled = titleBox.disabled = true;
+    button.disabled = select.disabled = titleBox.disabled = authorBox.disabled = true;
     enqueue(row, async (progress) => {
       try {
-        const res = await convert(file, to, progress, { title: titleBox.value });
+        const res = await convert(file, to, progress, { title: titleBox.value, author: authorBox.value });
         res.summary = `Done — converted to ${FORMAT_LABELS[to]}.`;
         return res;
       } finally {
-        button.disabled = select.disabled = titleBox.disabled = false;
+        button.disabled = select.disabled = titleBox.disabled = authorBox.disabled = false;
         button.textContent = 'Convert again';
       }
     });
