@@ -13,6 +13,7 @@ let cancelled = false;
 
 async function fetchWasm(progress) {
   if (wasmURL) return wasmURL;
+  progress?.(`Downloading the video engine (one time only, ${fmt(WASM_BYTES)})…`, 0);
   const res = await fetch(CORE + 'ffmpeg-core.wasm');
   if (!res.ok || !res.body) throw new Error("Couldn't download the video engine. Check your connection and try again.");
   const reader = res.body.getReader();
@@ -29,15 +30,27 @@ async function fetchWasm(progress) {
   return wasmURL;
 }
 
+// A stalled download or a worker that never reports back would otherwise hold up every file queued behind it.
+const START_TIMEOUT_MS = 90 * 1000;
+
+function withTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 function getEngine(progress) {
   if (!enginePromise) {
-    enginePromise = (async () => {
+    const start = (async () => {
       const wasm = await fetchWasm(progress);
       progress?.('Starting the video engine…');
       const ff = new FFmpeg();
       await ff.load({ coreURL: CORE + 'ffmpeg-core.js', wasmURL: wasm });
       return ff;
     })();
+    enginePromise = withTimeout(start, START_TIMEOUT_MS,
+      "The video engine didn't start. Check your connection, then reload the page and try again.");
+    // A failed or abandoned start is forgotten, so the next job tries again from scratch.
     enginePromise.catch(() => { enginePromise = null; });
   }
   return enginePromise;

@@ -74,18 +74,28 @@ function compressOptions(limit) {
 let queue = Promise.resolve();
 let running = null;
 
+// The most recently queued job that hasn't finished yet, so a waiting row can name what it's waiting for.
+let lastQueued = null;
+
 function enqueue(row, run) {
   // A fresh ticket per job, so a cancelled job that's still queued can't run after the row is restarted.
   const ticket = {};
   row.ticket = ticket;
   row.cancelled = false;
-  row.setStatus('Waiting…');
+  const ahead = lastQueued && 'busy' in lastQueued.li.dataset ? lastQueued : null;
+  row.setStatus(ahead ? `Waiting for ${ahead.name} to finish…` : 'Waiting…');
   row.cancelBtn.hidden = false;
   row.li.dataset.busy = '';
+  lastQueued = row;
   queue = queue.then(async () => {
-    if (row.cancelled || row.ticket !== ticket) return;
-    running = row;
-    try { await row.work(run); } finally { running = null; }
+    try {
+      if (row.cancelled || row.ticket !== ticket) return;
+      running = row;
+      await row.work(run);
+    } finally {
+      running = null;
+      if (lastQueued === row) lastQueued = null;
+    }
   });
 }
 
@@ -123,8 +133,14 @@ function makeRow(file) {
   const note = li.querySelector('.note');
   const cancelBtn = li.querySelector('.cancel');
 
+  // Cancelling rejects this promise, which releases the queue even if the job itself is stuck.
+  let abort;
+  const aborted = new Promise((_, reject) => { abort = reject; });
+  aborted.catch(() => {});
+
   const row = {
     li,
+    name: file.name,
     cancelBtn,
     cancelled: false,
     setStatus(msg, cls = '') { status.textContent = msg; status.className = `status ${cls}`; },
@@ -148,11 +164,15 @@ function makeRow(file) {
     // Wraps a unit of work with the shared busy / done / error handling.
     // Every job reports progress often, so a cancel takes effect at its next progress update.
     async work(fn) {
+      row.progress('Starting…');
       try {
-        const res = await fn((msg, frac) => {
-          if (row.cancelled) throw new Error('Cancelled.');
-          row.progress(msg, frac);
-        });
+        const res = await Promise.race([
+          fn((msg, frac) => {
+            if (row.cancelled) throw new Error('Cancelled.');
+            row.progress(msg, frac);
+          }),
+          aborted,
+        ]);
         if (row.cancelled) throw new Error('Cancelled.');
         const { outputs, note: text, summary } = res;
         row.setStatus(summary, 'ok');
@@ -177,6 +197,7 @@ function makeRow(file) {
     cancelBtn.hidden = true;
     if (running === row) {
       row.setStatus('Cancelling…', 'err');
+      abort(new Error('Cancelled.'));
       cancelEngine();
     } else {
       row.setStatus('Cancelled.', 'err');
