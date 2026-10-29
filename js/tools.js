@@ -15,6 +15,7 @@ const loadPdfLib = () => {
 export const TOOLS = {
   trim: { accepts: (f) => ['video', 'audio'].includes(kindOf(f)), multi: false, what: 'videos or audio files' },
   'join-audio': { accepts: (f) => kindOf(f) === 'audio', multi: true, what: 'audio files' },
+  'split-audio': { accepts: (f) => kindOf(f) === 'audio', multi: false, what: 'audiobooks' },
   'merge-pdf': { accepts: (f) => kindOf(f) === 'pdf', multi: true, what: 'PDFs' },
   'split-pdf': { accepts: (f) => kindOf(f) === 'pdf', multi: false, what: 'PDFs' },
   'photos-pdf': { accepts: (f) => kindOf(f) === 'image', multi: true, what: 'photos' },
@@ -221,6 +222,65 @@ async function separateTracks(files, progress, title, author) {
     })),
     summary: `Done — ${n} track${n === 1 ? '' : 's'}, listed together as "${book}".`,
     note: 'Each track is its own file, numbered in order, so iTunes shows them as one book. Add them all to iTunes together.',
+  };
+}
+
+// Chapters from ffmpeg's metadata export: [CHAPTER] blocks with TIMEBASE, START, END and title.
+// Values are in the block's own timebase; text uses backslash escapes for = ; # and \.
+function parseChapters(text) {
+  const chapters = [];
+  let open = null;
+  for (const line of text.split('\n')) {
+    if (line.trim() === '[CHAPTER]') {
+      open = { base: 1 / 1000, start: 0, end: 0, title: '' };
+      chapters.push(open);
+    } else if (open) {
+      const m = /^(TIMEBASE|START|END|title)=(.*)$/.exec(line);
+      if (!m) continue;
+      if (m[1] === 'TIMEBASE') {
+        const [num, den] = m[2].split('/').map(Number);
+        if (num && den) open.base = num / den;
+      } else if (m[1] === 'title') {
+        open.title = m[2].replace(/\\(.)/g, '$1').trim();
+      } else {
+        open[m[1].toLowerCase()] = Number(m[2]);
+      }
+    }
+  }
+  return chapters.map((c) => ({ start: c.start * c.base, end: c.end * c.base, title: c.title }));
+}
+
+// Cuts one audiobook into a file per chapter, numbered in order and tagged with the same album, artist and
+// album artist, so iTunes lists them as one book. AAC is copied as it is; other formats are re-encoded to AAC 192k.
+export async function splitAudiobook(file, { title = '', author = '' }, progress) {
+  const { chapters, codec } = await ffmpegJob(file, progress, async (job) => {
+    if (!job.info.audio) throw new Error("Couldn't find any sound in this file.");
+    const meta = await job.encode(['-i', job.input, '-f', 'ffmetadata'], 'txt', 'text/plain', { duration: job.info.duration, label: 'Reading chapters' });
+    return { chapters: parseChapters(await meta.text()), codec: job.info.audio.codec };
+  });
+  if (chapters.length < 2) {
+    throw new Error('This file has no chapter markers, so there is nothing to split it by. Books joined with "One file, with a chapter for each track" have them.');
+  }
+  const n = chapters.length;
+  const book = title.trim() || baseName(file.name);
+  const artist = author.trim() || book;
+  const lengths = chapters.map((c) => Math.max(0, c.end - c.start));
+  const total = lengths.reduce((sum, d) => sum + d, 0);
+  const trackTitle = (i) => chapters[i].title || `Part ${i + 1}`;
+  const blobs = await encodeEach(new Array(n).fill(file), lengths, total, progress, encodeWorkers(n), (i, job) => ({
+    args: ['-ss', String(chapters[i].start), '-i', job.input, '-t', String(lengths[i]), '-map', '0:a:0',
+      ...(codec === 'aac' ? ['-c:a', 'copy'] : ['-af', TO_STEREO_44K, '-c:a', 'aac', '-b:a', '192k']),
+      '-map_chapters', '-1', '-metadata', `title=${trackTitle(i)}`, '-metadata', `album=${book}`,
+      '-metadata', `artist=${artist}`, '-metadata', `album_artist=${artist}`, '-metadata', `track=${i + 1}/${n}`,
+      '-metadata', 'media_type=2', '-metadata', 'genre=Audiobook', '-brand', 'M4B ', '-f', 'ipod'],
+    ext: 'm4b',
+    type: 'audio/mp4',
+  }));
+  const digits = Math.max(2, String(n).length);
+  return {
+    outputs: blobs.map((blob, i) => ({ blob, name: `${String(i + 1).padStart(digits, '0')} ${audiobookTags(trackTitle(i)).file}` })),
+    summary: `Done — ${n} tracks, listed together as "${book}".`,
+    note: `Cut at the ${n} chapter markers. ${codec === 'aac' ? 'The audio was copied as it is, so quality is unchanged.' : 'Re-encoded to AAC 192k.'} Add all the files to iTunes together.`,
   };
 }
 
