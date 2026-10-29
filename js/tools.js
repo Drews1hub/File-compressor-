@@ -85,21 +85,21 @@ async function chapterInput(job, files, durations, index) {
 }
 
 // Copies the AAC audio of each track straight into the book: no re-encoding, so no quality loss.
-async function copyJoin(job, files, durations, total) {
+async function copyJoin(job, files, durations, total, book) {
   const n = files.length;
   if (n === 1) {
-    const blob = await job.encode(['-i', job.input, '-map', '0:a:0', '-c', 'copy', '-map_chapters', '0', '-f', 'ipod'],
+    const blob = await job.encode(['-i', job.input, '-map', '0:a:0', '-c', 'copy', '-map_chapters', '0', ...book.meta, '-f', 'ipod'],
       'm4b', 'audio/mp4', { duration: total, label: 'Copying' });
-    return { outputs: [{ blob, name: 'audiobook.m4b' }], summary: `Done — one audiobook, ${fmtDuration(total)} long.`, note: 'Audio copied as-is, so quality is unchanged.' };
+    return { outputs: [{ blob, name: book.file }], summary: `Done — one audiobook, ${fmtDuration(total)} long.`, note: 'Audio copied as-is, so quality is unchanged.' };
   }
   // The concat demuxer reads a list of files; quotes inside a path are escaped the way ffmpeg expects.
   const list = await job.writeText(job.inputs.map((path) => `file '${path.replace(/'/g, "'\\''")}'`).join('\n') + '\n', 'txt');
   const chapters = await chapterInput(job, files, durations, 1);
   const blob = await job.encode(['-f', 'concat', '-safe', '0', '-i', list, ...chapters.extra,
-    '-map', '0:a:0', ...chapters.map, '-c', 'copy', '-f', 'ipod'],
+    '-map', '0:a:0', ...chapters.map, '-c', 'copy', ...book.meta, '-f', 'ipod'],
   'm4b', 'audio/mp4', { duration: total, label: 'Joining' });
   return {
-    outputs: [{ blob, name: 'audiobook.m4b' }],
+    outputs: [{ blob, name: book.file }],
     summary: `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, one chapter per file.`,
     note: 'Audio copied as-is, so quality is unchanged.',
   };
@@ -108,7 +108,13 @@ async function copyJoin(job, files, durations, total) {
 // Joins the tracks, in the order given, into one M4B. With several files each one becomes a chapter,
 // so the book is a single file that can still be navigated by disc and track.
 // A single file keeps whatever chapters it already has.
-export function joinAudiobook(files, progress) {
+export function joinAudiobook(files, progress, { title = '' } = {}) {
+  // The title names the file and is stored in the book as its title and album, which is what iTunes lists it under.
+  const name = title.trim();
+  const book = {
+    file: `${name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120) || 'audiobook'}.m4b`,
+    meta: name ? ['-metadata', `title=${name}`, '-metadata', `album=${name}`] : [],
+  };
   return ffmpegJob(files, progress, async (job) => {
     const n = files.length;
     const durations = [];
@@ -128,7 +134,7 @@ export function joinAudiobook(files, progress) {
     const sameFormat = infos.every((a) => a.codec === 'aac' && a.rate === first.rate && a.channels === first.channels);
     if (sameFormat) {
       try {
-        return await copyJoin(job, files, durations, total);
+        return await copyJoin(job, files, durations, total, book);
       } catch { /* fall back to re-encoding */ }
     }
 
@@ -139,10 +145,10 @@ export function joinAudiobook(files, progress) {
     const concat = `${job.inputs.map((_, i) => `[a${i}]`).join('')}concat=n=${n}:v=0:a=1[out]`;
     const chapters = await chapterInput(job, files, durations, n);
     const blob = await job.encode([...inputs, ...chapters.extra, '-filter_complex', [...chains, concat].join(';'),
-      '-map', '[out]', ...chapters.map, '-c:a', 'aac', '-b:a', '192k', '-f', 'ipod'],
+      '-map', '[out]', ...chapters.map, '-c:a', 'aac', '-b:a', '192k', ...book.meta, '-f', 'ipod'],
     'm4b', 'audio/mp4', { duration: total, label: 'Joining' });
     return {
-      outputs: [{ blob, name: 'audiobook.m4b' }],
+      outputs: [{ blob, name: book.file }],
       summary: n > 1
         ? `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, one chapter per file.`
         : `Done — one audiobook, ${fmtDuration(total)} long.`,
