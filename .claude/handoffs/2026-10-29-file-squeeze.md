@@ -7,6 +7,7 @@
 - Three tabs: **Compress** (goal = Fit a size in MB/KB with presets, Pick a strength Light/Balanced/Strong, or Shrink by %; More options: photo format auto/jpg/webp, photo max side, video max res, remove sound), **Convert** (global "Convert to" select, or per-file picker), **Zip** (ZIP or TAR.GZ, keeps dropped folder structure, `js/archive.js`).
 - **Tools** tab (`js/tools.js`, pdf-lib vendored and lazy-loaded): trim video/audio (exact cut by default, optional quick stream-copy cut), merge PDFs (reorderable list), split PDF (every page / ranges), photos → one PDF (fit/A4/Letter), rotate/flip/resize photos, open ZIP/TAR.GZ. Inspired by tangerineformac.com (Mac app): its file tools, not its radial-wheel UI.
 - "Download all as ZIP" + "Clear list" under the tabs; settings saved in localStorage.
+- Engine is shut down after every ffmpeg job (fresh engine next time, avoids memory build-up in long queues). Any ffmpeg run silent for 120 s fails with a message (watchdog).
 - Engine start (download + load) times out after 90 s with a readable error; Cancel releases the queue even if a job is stuck; rows show what they're doing ("Downloading the video engine…", "Waiting for X to finish…").
 - Every result row has Cancel (any job; non-ffmpeg jobs stop at their next progress update, ffmpeg jobs restart the engine) and ✕ to remove it from the list.
 - Feature set modelled on compress2go.com (features only; own names, wording, layout, colors — user asked not to copy so closely it could cause trouble).

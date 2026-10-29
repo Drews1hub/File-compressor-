@@ -32,6 +32,8 @@ async function fetchWasm(progress) {
 
 // A stalled download or a worker that never reports back would otherwise hold up every file queued behind it.
 const START_TIMEOUT_MS = 90 * 1000;
+// Longest a single ffmpeg run may go without printing anything before it counts as hung.
+const STALL_MS = 120 * 1000;
 
 function withTimeout(promise, ms, message) {
   let timer;
@@ -97,7 +99,9 @@ export async function ffmpegJob(file, progress, fn) {
 
   async function run(args, { duration = 0, label = 'Working' } = {}) {
     const logs = [];
+    let lastActivity = Date.now();
     const onLog = ({ message }) => {
+      lastActivity = Date.now();
       logs.push(message);
       if (logs.length > 300) logs.shift();
       const t = /time=\s*(\d+):(\d+):([\d.]+)/.exec(message);
@@ -106,12 +110,21 @@ export async function ffmpegJob(file, progress, fn) {
         progress?.(`${label}… ${Math.round(frac * 100)}%`, frac);
       }
     };
+    // If ffmpeg goes quiet for too long it has hung, so fail instead of blocking the queue for good.
+    let watchdog;
+    const stalled = new Promise((_, reject) => {
+      watchdog = setInterval(() => {
+        if (Date.now() - lastActivity > STALL_MS) reject(new Error('The conversion stopped responding. Try again, or try a shorter file.'));
+      }, 5000);
+    });
     ff.on('log', onLog);
     try {
-      const code = await ff.exec(['-hide_banner', '-nostdin', ...args]);
+      const code = await Promise.race([ff.exec(['-hide_banner', '-nostdin', ...args]), stalled]);
       return { code, logs };
     } finally {
+      clearInterval(watchdog);
       ff.off('log', onLog);
+      stalled.catch(() => {});
     }
   }
 
@@ -151,5 +164,8 @@ export async function ffmpegJob(file, progress, fn) {
       await ff.unmount(dir).catch(() => {});
       await ff.deleteDir(dir).catch(() => {});
     }
+    // Shut the engine down after every job, so memory from one file can't build up across a long queue.
+    // The next job starts a fresh engine (the 32 MB download is reused, so this only costs a moment).
+    resetEngine();
   }
 }
