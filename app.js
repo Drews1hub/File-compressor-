@@ -483,7 +483,7 @@ $('#tool-make').addEventListener('click', () => {
   if (tool === 'join-audio') {
     const title = $('#book-title').value;
     const row = makeRow({ name: `${title.trim() || 'audiobook'}.m4b`, size: total });
-    enqueue(row, (progress) => joinAudiobook(files, progress, { title }));
+    enqueue(row, (progress) => joinAudiobook(files, progress, { title, separate: $('#book-output').value === 'tracks' }));
   } else if (tool === 'merge-pdf') {
     const row = makeRow({ name: 'merged.pdf', size: total });
     enqueue(row, async (progress) => {
