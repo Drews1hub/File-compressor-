@@ -79,6 +79,8 @@ function enqueue(row, run) {
   row.setStatus('Waiting…');
   row.cancelBtn.hidden = false;
   row.li.dataset.busy = '';
+  row.li.querySelector('.redo').hidden = true;
+  updateBulk();
   queue = queue.then(async () => {
     if (row.cancelled) return;
     running = row;
@@ -94,12 +96,13 @@ let allOutputs = [];
 function updateBulk() {
   $('#bulk').hidden = !results.children.length;
   $('#download-all').hidden = allOutputs.length < 2;
+  $('#redo-all').hidden = ![...results.children].some((li) => !li.querySelector('.redo').hidden);
 }
 
 function makeRow(file) {
   const li = document.createElement('li');
   li.innerHTML = `
-    <div class="row-head"><div class="name"></div><button type="button" class="cancel" hidden>Cancel</button></div>
+    <div class="row-head"><div class="name"></div><button type="button" class="redo" hidden>Redo</button><button type="button" class="cancel" hidden>Cancel</button></div>
     <div class="picker" hidden></div>
     <div class="status"></div>
     <progress hidden></progress>
@@ -113,10 +116,23 @@ function makeRow(file) {
   const bar = li.querySelector('progress');
   const note = li.querySelector('.note');
   const cancelBtn = li.querySelector('.cancel');
+  const redoBtn = li.querySelector('.redo');
 
   const row = {
     li,
     cancelBtn,
+    redoFn: null,
+    // Registers how to run this file again with whatever settings are chosen now.
+    setRedo(fn) { row.redoFn = fn; redoBtn.hidden = !fn || 'busy' in li.dataset; updateBulk(); },
+    // Drops the previous results so the same row can be filled in again.
+    reset() {
+      li.querySelectorAll('.downloads a').forEach((a) => URL.revokeObjectURL(a.href));
+      li.querySelector('.downloads').replaceChildren();
+      allOutputs = allOutputs.filter((o) => o.li !== li);
+      row.setNote('');
+      redoBtn.hidden = true;
+      updateBulk();
+    },
     cancelled: false,
     // Only ffmpeg jobs can be stopped part-way; everything else is quick enough to just finish.
     stoppable: ['video', 'audio'].includes(kindOf(file)),
@@ -153,9 +169,13 @@ function makeRow(file) {
         bar.hidden = true;
         cancelBtn.hidden = true;
         delete li.dataset.busy;
+        redoBtn.hidden = !row.redoFn;
+        updateBulk();
       }
     },
   };
+
+  redoBtn.addEventListener('click', () => { if (row.redoFn) { row.reset(); row.redoFn(); } });
 
   cancelBtn.addEventListener('click', () => {
     row.cancelled = true;
@@ -164,6 +184,8 @@ function makeRow(file) {
     else {
       row.setStatus('Cancelled.', 'err');
       delete li.dataset.busy;
+      redoBtn.hidden = !row.redoFn;
+      updateBulk();
       li.querySelectorAll('.picker select, .picker button').forEach((el) => { el.disabled = false; });
     }
   });
@@ -172,8 +194,8 @@ function makeRow(file) {
 
 // ---------- compress ----------
 
-function compressFile(file) {
-  const row = makeRow(file);
+function compressFile(file, row = makeRow(file)) {
+  row.setRedo(() => compressFile(file, row));
   const limit = limitFor(file);
 
   if (limit != null && file.size <= limit) {
@@ -198,14 +220,14 @@ function compressFile(file) {
 
 // ---------- convert ----------
 
-function convertFile(file) {
-  const row = makeRow(file);
+function convertFile(file, row = makeRow(file)) {
   const formats = targetsFor(file);
   if (!formats.length) {
     row.setStatus('No conversions for this file type yet. Images, videos, audio and PDFs can be converted.', 'err');
     return;
   }
 
+  row.setRedo(() => convertFile(file, row));
   const picker = row.li.querySelector('.picker');
   picker.hidden = false;
   picker.innerHTML = '<span>Convert to</span> <select></select> <button type="button">Convert</button>';
@@ -359,14 +381,18 @@ function toolFiles(items) {
     } else if (spec.multi) {
       toolItems.push(file);
     } else {
-      const row = makeRow(file);
-      let settings;
-      try { settings = toolSettings(tool); } catch (e) { row.setStatus(e.message, 'err'); continue; }
-      const [fn, summary] = SINGLE_TOOLS[tool];
-      enqueue(row, async (progress) => ({ ...(await fn(file, settings, progress)), summary }));
+      runSingleTool(tool, file, makeRow(file));
     }
   }
   renderToolList();
+}
+
+function runSingleTool(tool, file, row) {
+  row.setRedo(() => runSingleTool(tool, file, row));
+  let settings;
+  try { settings = toolSettings(tool); } catch (e) { row.setStatus(e.message, 'err'); return; }
+  const [fn, summary] = SINGLE_TOOLS[tool];
+  enqueue(row, async (progress) => ({ ...(await fn(file, settings, progress)), summary }));
 }
 
 $('#tool-make').addEventListener('click', () => {
@@ -412,6 +438,15 @@ $('#download-all').addEventListener('click', async () => {
     btn.disabled = false;
     btn.textContent = label;
   }
+});
+
+$('#redo-all').addEventListener('click', () => {
+  // Newest rows are first in the list, so go from the bottom to keep the original order.
+  for (const li of [...results.children].reverse()) {
+    const btn = li.querySelector('.redo');
+    if (!btn.hidden) btn.click();
+  }
+  updateBulk();
 });
 
 $('#clear-results').addEventListener('click', () => {

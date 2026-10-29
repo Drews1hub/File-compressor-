@@ -151,7 +151,7 @@ input[type="number"], select {
 }
 .control-row input { width: 90px; }
 .presets { display: flex; flex-wrap: wrap; gap: 6px; }
-.presets button, .picker button, .cancel {
+.presets button, .picker button, .cancel, .redo {
   padding: 5px 10px;
   font: inherit;
   font-size: .85rem;
@@ -161,7 +161,7 @@ input[type="number"], select {
   border-radius: 999px;
   cursor: pointer;
 }
-.presets button:hover, .picker button:hover, .cancel:hover { border-color: var(--accent); }
+.presets button:hover, .picker button:hover, .cancel:hover, .redo:hover { border-color: var(--accent); }
 .picker button:disabled { opacity: .5; cursor: default; }
 
 .drop {
