@@ -1,26 +1,29 @@
-# Handoff: join CDs into one audiobook (2026-10-29)
+# Handoff: FileFit UX polish (2026-10-29)
 
-**Goal:** FileFit is a free in-browser file compressor and converter (nothing is uploaded). The user wants to combine the tracks from several audiobook CDs into one audiobook, so they don't have to switch discs. Dropping the files in should produce a single M4B that plays straight through from the first track to the last.
+**Goal:** FileFit is a free in-browser file compressor and converter (nothing is uploaded). The user asked for a review of the whole app for ways to make it friendlier and more appealing, then asked for the top 6 fixes, but only if they would not cause problems.
 
-**Done:** Nothing in code yet. This session only set the goal.
+**Done** (branch `claude/happy-davinci-4lcx8i`, pushed, no PR opened):
+- Compact hero in `index.html` and `styles.css`: the drop box now starts about 750px down instead of 1175px. Stats are one thin line.
+- "How It Works" link opens the help section (`app.js`, near `loadSettings()`).
+- Compress summary says "N% smaller" via `smallerBy()` in `app.js`.
+- Each result row has a tag (Compress, Convert, Zip, tool name) from `makeRow(file, tag)`.
+- "Convert all waiting files" button in the Convert tab (`#convert-all`, `row.convertWith`).
+- Redo button on compress rows (`row.redo`, `row.clearOutputs()`).
+- Tested in headless Chromium: all flows pass, no console errors, no sideways scroll at 390px. Video and audio were not tested (32 MB engine).
 
 **Decisions:**
-- The output is one M4B, with the tracks joined in the order the user sets. Nothing is split or re-chaptered unless the user asks.
-- Earlier M4B work is already on the branch (`c083d35`, `js/convert.js` `m4b` args with `-f ipod`). Reuse it, don't rebuild it.
+- A separate results list per tab was NOT done. It would affect Download all, the progress ring and Clear. Row tags were used instead.
+- Redo is only on Compress rows. Convert rows already have "Convert again".
 
-**Open:**
-- Design questions to ask the user before coding:
-  1. How should the files be picked? Options: a "Join into one audiobook" action on a multi-file selection, or a checkbox per row with a join button.
-  2. Track order: by file name (CD1 track 01, CD1 track 02, CD2 track 01...), or by the order dropped? Name order is the likely default, and the user can reorder.
-  3. Chapter markers: keep one chapter per source file, or none?
-- Likely approach: ffmpeg concat (the concat demuxer or the concat filter) with the same AAC 128k args, run in the existing ffmpeg.wasm engine (`js/engine.js`). Put the join logic in `js/convert.js` and the UI in `app.js`.
-- Carried over from the previous session, still open:
-  - MP3 instead of M4B: `app.js` `convertFile` (around line 320) auto-starts conversion using the top "Convert to" setting saved in localStorage. Options: (A) wait for the user to press Convert per row (recommended), or (B) auto-start only for a format picked during the current visit.
-  - Apple Books on High Sierra only takes EPUB and PDF, not M4B. This can't be solved in FileFit. Suggest QuickTime or an iPhone audiobook app.
-  - Dropping many WMA files at once can leave the oldest row stuck. Needs status text and console errors from the user.
+**Open** (ideas from the review, not started):
+- Paste to add files; drop anywhere on the page; progress in the tab title; warn before leaving mid-job; remember the last tab and put it in the URL.
+- Screen-reader announcements (`aria-live` on row status), arrow keys on tabs, bigger remove buttons.
+- Image thumbnails and before/after, time remaining for video and audio, shorter download buttons.
+- Offline install (service worker and manifest); gentler PDF compression that keeps text; AAC instead of MP3 for audio compression.
+- Footer credits are missing Tesseract, OpenCascade, LibreDWG, mobi-parser and dxf; link the GPL licenses on the page.
+- Older items still open: convert auto-starts from the saved "Convert to" setting, and a row can get stuck when many WMA files are dropped at once.
 
 **Where things live:**
-- Repo: `/home/user/File-compressor-`, branch `claude/clever-edison-ad8mje`, pushed.
-- Convert logic: `js/convert.js` (`AUDIO_ARGS`, `TARGETS`, `convertMedia`). Row picker and auto-start: `app.js` (`convertFile`). Audio compress: `js/compress.js`. Engine: ffmpeg.wasm in `js/engine.js`, with the vendored build in `vendor/ffmpeg-core/`.
-- Previous handoff (M4B issue): `.claude/handoffs/2026-10-29-m4b-convert.md`.
-- Reference PDF: `docs/reference/best-online-file-converters-2026.pdf`.
+- Repo `/home/user/File-compressor-`, branch `claude/happy-davinci-4lcx8i`. Static site, run with `python3 -m http.server`.
+- UI: `app.js`, `index.html`, `styles.css`. File handling: `js/`.
+- Earlier handoffs: `.claude/handoffs/`.
