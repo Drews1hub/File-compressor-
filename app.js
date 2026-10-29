@@ -3,6 +3,7 @@ import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
+import { TOOLS, parseTime, trimMedia, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;
@@ -15,7 +16,8 @@ const convertTo = $('#convert-to');
 // ---------- settings (remembered per browser) ----------
 
 const SETTINGS_KEY = 'file-squeeze-settings';
-const SETTING_FIELDS = ['#target', '#unit', '#percent', '#image-format', '#max-side', '#max-res', '#mute', '#convert-to', '#archive-type'];
+const SETTING_FIELDS = ['#target', '#unit', '#percent', '#image-format', '#max-side', '#max-res', '#mute', '#convert-to',
+  '#archive-type', '#tool', '#pdf-page'];
 const checked = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
 
 function saveSettings() {
@@ -284,6 +286,114 @@ $('#zip-make').addEventListener('click', () => {
 });
 $('#zip-clear').addEventListener('click', () => { zipItems = []; renderZipList(); });
 
+// ---------- tools ----------
+
+const TOOL_TEXT = {
+  trim: ['Drop videos or audio to trim', 'Times are minutes:seconds, like 1:30. Leave End blank to keep everything after Start.'],
+  'merge-pdf': ['Drop the PDFs to merge', 'Pages keep their text and quality. Put the list in order, then merge.'],
+  'split-pdf': ['Drop a PDF to split', 'Every part keeps its text selectable.'],
+  'photos-pdf': ['Drop the photos for your PDF', 'One photo per page, in the order listed. iPhone HEIC photos work too.'],
+  'photo-edit': ['Drop photos to edit', 'Every photo you drop gets the same changes.'],
+  extract: ['Drop a ZIP or TAR.GZ to open', 'Each file inside gets its own download button.'],
+};
+
+let toolItems = [];
+
+function showTool() {
+  const tool = $('#tool').value;
+  for (const el of $$('.tool-opts')) el.hidden = el.dataset.tool !== tool;
+  [$('#tool-drop-title').textContent, $('#tool-hint').textContent] = TOOL_TEXT[tool];
+  toolItems = [];
+  renderToolList();
+}
+
+function renderToolList() {
+  const tool = $('#tool').value;
+  const box = $('#tool-list');
+  box.hidden = !TOOLS[tool].multi || !toolItems.length;
+  box.querySelector('ol').replaceChildren(...toolItems.map((file, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="item"><span></span><span class="size"></span>
+      <button type="button" data-move="-1" aria-label="Move up">↑</button>
+      <button type="button" data-move="1" aria-label="Move down">↓</button>
+      <button type="button" data-remove aria-label="Remove">✕</button></div>`;
+    li.querySelector('span').textContent = file.name;
+    li.querySelector('.size').textContent = fmt(file.size);
+    li.querySelector('[data-move="-1"]').disabled = i === 0;
+    li.querySelector('[data-move="1"]').disabled = i === toolItems.length - 1;
+    li.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => {
+      const j = i + Number(b.dataset.move);
+      [toolItems[i], toolItems[j]] = [toolItems[j], toolItems[i]];
+      renderToolList();
+    }));
+    li.querySelector('[data-remove]').addEventListener('click', () => { toolItems.splice(i, 1); renderToolList(); });
+    return li;
+  }));
+  const n = toolItems.length;
+  $('#tool-make').textContent = tool === 'merge-pdf' ? `Merge ${n} PDF${n === 1 ? '' : 's'}` : `Make a PDF from ${n} photo${n === 1 ? '' : 's'}`;
+}
+
+// Reads the current tool's settings; throws a readable error for bad input.
+function toolSettings(tool) {
+  switch (tool) {
+    case 'trim': return { start: parseTime($('#trim-start').value), end: parseTime($('#trim-end').value), exact: !$('#trim-quick').checked };
+    case 'split-pdf': return { mode: checked('split-mode'), ranges: $('#split-ranges').value };
+    case 'photo-edit': return { rotate: Number($('#edit-rotate').value), resize: $('#edit-resize').value, flip: $('#edit-flip').checked };
+    default: return {};
+  }
+}
+
+const SINGLE_TOOLS = {
+  trim: [trimMedia, 'Done — trimmed.'],
+  'split-pdf': [splitPdf, 'Done — split.'],
+  'photo-edit': [editPhoto, 'Done.'],
+  extract: [(file, _s, progress) => extractArchive(file, progress), 'Done — opened.'],
+};
+
+function toolFiles(items) {
+  const tool = $('#tool').value;
+  const spec = TOOLS[tool];
+  for (const { file } of items) {
+    if (!spec.accepts(file)) {
+      makeRow(file).setStatus(`This tool works with ${spec.what}. Pick another tool above for this file.`, 'err');
+    } else if (spec.multi) {
+      toolItems.push(file);
+    } else {
+      const row = makeRow(file);
+      let settings;
+      try { settings = toolSettings(tool); } catch (e) { row.setStatus(e.message, 'err'); continue; }
+      const [fn, summary] = SINGLE_TOOLS[tool];
+      enqueue(row, async (progress) => ({ ...(await fn(file, settings, progress)), summary }));
+    }
+  }
+  renderToolList();
+}
+
+$('#tool-make').addEventListener('click', () => {
+  const tool = $('#tool').value;
+  const files = toolItems;
+  if (!files.length) return;
+  toolItems = [];
+  renderToolList();
+  const total = files.reduce((s, f) => s + f.size, 0);
+  if (tool === 'merge-pdf') {
+    const row = makeRow({ name: 'merged.pdf', size: total });
+    enqueue(row, async (progress) => {
+      const { blob, pages } = await mergePdfs(files, progress);
+      return { outputs: [{ blob, name: 'merged.pdf' }], summary: `Done — ${files.length} PDFs, ${pages} pages in total.`, note: '' };
+    });
+  } else {
+    const page = $('#pdf-page').value;
+    const row = makeRow({ name: 'photos.pdf', size: total });
+    enqueue(row, async (progress) => {
+      const blob = await photosToPdf(files, { page }, progress);
+      return { outputs: [{ blob, name: 'photos.pdf' }], summary: `Done — ${files.length} page${files.length === 1 ? '' : 's'}.`, note: '' };
+    });
+  }
+});
+$('#tool-clear').addEventListener('click', () => { toolItems = []; renderToolList(); });
+$('#tool').addEventListener('change', showTool);
+
 // ---------- download all / clear ----------
 
 $('#download-all').addEventListener('click', async () => {
@@ -321,6 +431,7 @@ const HANDLE = {
   compress: (items) => items.forEach(({ file }) => compressFile(file)),
   convert: (items) => items.forEach(({ file }) => convertFile(file)),
   zip: addToZip,
+  tools: toolFiles,
 };
 
 for (const drop of $$('.drop')) {
@@ -357,7 +468,8 @@ for (const b of $$('.presets button')) {
 
 loadSettings();
 showGoal();
-for (const el of $$('#panel-compress input, #panel-compress select, #convert-to, #archive-type')) {
+showTool();
+for (const el of $$('#panel-compress input, #panel-compress select, #convert-to, #archive-type, #tool, #pdf-page')) {
   el.addEventListener('change', () => { showGoal(); saveSettings(); });
 }
 $('#percent').addEventListener('input', showGoal);

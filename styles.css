@@ -25,6 +25,8 @@
 }
 
 * { box-sizing: border-box; }
+/* Author display rules (flex, grid) would otherwise override the hidden attribute. */
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -215,3 +217,18 @@ input[type="number"], select {
 .help summary { cursor: pointer; color: var(--text); font-weight: 600; }
 .help dt { color: var(--text); font-weight: 600; margin-top: 12px; }
 .help dd { margin: 2px 0 0; }
+
+.tool-opts { margin-top: 12px; }
+.tool-opts input[type="text"] { max-width: 200px; }
+.stack { display: grid; gap: 6px; }
+.tool-hint { margin: 10px 0 0; color: var(--muted); font-size: .88rem; }
+.zip-list ol { margin: 0 0 12px; padding-left: 24px; font-size: .9rem; }
+.zip-list ol li { padding: 3px 0; }
+.zip-list ol .item { display: flex; align-items: center; gap: 8px; }
+.zip-list ol .item span:first-child { flex: 1; overflow-wrap: anywhere; }
+.zip-list ol button { padding: 2px 8px; font: inherit; font-size: .8rem; background: none; color: var(--muted); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+
+@media (max-width: 520px) {
+  .tabs { display: flex; width: 100%; }
+  .tabs button { flex: 1; padding: 8px 6px; }
+}

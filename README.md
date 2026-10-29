@@ -10,6 +10,8 @@ A free file compressor and converter that runs entirely in your web browser. You
   *More options* sets the photo format (Auto keeps transparency by using WebP), a maximum photo size,
   a maximum video resolution, and whether to remove the sound from videos.
 - **Convert** changes a file's format: images, video, audio and PDFs.
+- **Tools**: trim a video or audio clip, merge PDFs, split a PDF (every page or chosen ranges, text stays selectable),
+  turn photos into one PDF (fit, A4 or Letter), rotate / flip / resize photos, and open ZIP or TAR.GZ archives.
 - **Zip** bundles files or whole folders (structure kept) into a ZIP or TAR.GZ.
 - **Download all** saves every result in one ZIP. Settings are remembered in your browser.
 
@@ -56,6 +58,7 @@ It's just static files, so there's no build step.
 - `js/compress.js`, `js/convert.js`: what happens to each file type
 - `js/engine.js`: wrapper around ffmpeg.wasm (video, audio, unusual image formats)
 - `js/archive.js`: ZIP / TAR.GZ writing and reading dropped folders
+- `js/tools.js`: the Tools tab (trim, PDF merge/split, photos → PDF, photo edits, opening archives)
 - `js/images.js`, `js/pdf.js`, `js/util.js`: shared helpers
 
 ## Libraries
@@ -63,5 +66,6 @@ It's just static files, so there's no build step.
 These are copied into `vendor/`, so the site doesn't need any outside CDN:
 [pdf.js](https://github.com/mozilla/pdf.js) (Apache-2.0), [jsPDF](https://github.com/parallax/jsPDF) (MIT),
 [fflate](https://github.com/101arrowz/fflate) (MIT), [heic2any](https://github.com/alexcorvi/heic2any) (MIT),
+[pdf-lib](https://github.com/Hopding/pdf-lib) (MIT, loaded only for PDF merge/split),
 [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) (MIT wrapper; the 32 MB FFmpeg core is GPL-2.0-or-later,
 see `vendor/LICENSE-ffmpeg`). The ffmpeg core is only downloaded the first time someone drops a video or audio file.

@@ -5,6 +5,7 @@
 **Done** (branch `claude/wonderful-hypatia-9g13bo`, repo `Drews1hub/File-compressor-`):
 - Static site: `index.html`, `styles.css`, `app.js` (UI), modules in `js/` (`compress.js`, `convert.js`, `engine.js`, `images.js`, `pdf.js`, `util.js`).
 - Three tabs: **Compress** (goal = Fit a size in MB/KB with presets, Pick a strength Light/Balanced/Strong, or Shrink by %; More options: photo format auto/jpg/webp, photo max side, video max res, remove sound), **Convert** (global "Convert to" select, or per-file picker), **Zip** (ZIP or TAR.GZ, keeps dropped folder structure, `js/archive.js`).
+- **Tools** tab (`js/tools.js`, pdf-lib vendored and lazy-loaded): trim video/audio (exact cut by default, optional quick stream-copy cut), merge PDFs (reorderable list), split PDF (every page / ranges), photos → one PDF (fit/A4/Letter), rotate/flip/resize photos, open ZIP/TAR.GZ. Inspired by tangerineformac.com (Mac app): its file tools, not its radial-wheel UI.
 - "Download all as ZIP" + "Clear list" under the tabs; settings saved in localStorage.
 - Feature set modelled on compress2go.com (features only; own names, wording, layout, colors — user asked not to copy so closely it could cause trouble).
 - Compress: images → JPEG (incl. HEIC via heic2any, TIFF via ffmpeg); video → H.264 MP4 at computed bitrate, ≤30 fps, auto-downscale, `superfast` preset, up to 3 retries; audio → MP3; PDF rasterize; Office media shrink; text split; other → zip.
@@ -16,12 +17,12 @@
 - Hosting via GitHub Pages from this branch, `/ (root)`. Live at https://drews1hub.github.io/File-compressor-/
 - User has no custom domain; suggested renaming repo to `drews1hub.github.io` for a shorter URL (not done).
 - No PR (user hasn't asked).
-- compress2go.com and www.compress2go.com are allowed in the network policy now. User also wants tangerineformac.com looked at; it needs `tangerineformac.com` and `www.tangerineformac.com` added to Allowed domains (still blocked at last check).
+- Network access was opened up by the user; compress2go.com and tangerineformac.com were both reviewed. Recommended order for next Tangerine-inspired work: spreadsheets & subtitles conversion (SheetJS, SRT↔VTT), then documents (DOCX→text/HTML/MD via mammoth), then our own quick format picker (not a copy of Tangerine's radial wheel).
 
 **Open / ideas:**
 - User should hard-refresh the live site and try real files (their 45.9 MB PDF, phone videos).
 - Video encoding is single-threaded: long/4K videos are slow. Multi-thread core would need COOP/COEP (e.g. coi-serviceworker) — not done.
 - Folder drop into Zip tab not tested with a real folder (headless can't simulate it).
-- Possible next: look at tangerineformac.com once reachable; combine many images into one PDF, video trim, PDF compression that keeps text (needs a PDF library).
+- Possible next: spreadsheets/subtitles/docs conversions (above), PDF compression that keeps text selectable (pdf-lib is now vendored, could recompress embedded images).
 
 **Where things live:** test files/scripts were in the session scratchpad (lost when container ends).
