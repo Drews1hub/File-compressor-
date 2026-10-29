@@ -3,7 +3,7 @@ import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
-import { TOOLS, parseTime, trimMedia, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js';
+import { TOOLS, parseTime, trimMedia, joinAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;
@@ -378,6 +378,7 @@ $('#zip-clear').addEventListener('click', () => { zipItems = []; renderZipList()
 
 const TOOL_TEXT = {
   trim: ['Drop videos or audio to trim', 'Times are minutes:seconds, like 1:30. Leave End blank to keep everything after Start.'],
+  'join-audio': ['Drop the audio tracks, all discs at once', 'Files dropped together are sorted by name, so Disc 1 Track 01 comes before Disc 2 Track 01. Use the arrows to fix the order, then join. Each file becomes a chapter.'],
   'merge-pdf': ['Drop the PDFs to merge', 'Pages keep their text and quality. Put the list in order, then merge.'],
   'split-pdf': ['Drop a PDF to split', 'Every part keeps its text selectable.'],
   'photos-pdf': ['Drop the photos for your PDF', 'One photo per page, in the order listed. iPhone HEIC photos work too.'],
@@ -418,7 +419,11 @@ function renderToolList() {
     return li;
   }));
   const n = toolItems.length;
-  $('#tool-make').textContent = tool === 'merge-pdf' ? `Merge ${n} PDF${n === 1 ? '' : 's'}` : `Make a PDF from ${n} photo${n === 1 ? '' : 's'}`;
+  const makeLabel = {
+    'join-audio': `Join ${n} file${n === 1 ? '' : 's'} into one audiobook`,
+    'merge-pdf': `Merge ${n} PDF${n === 1 ? '' : 's'}`,
+  };
+  $('#tool-make').textContent = makeLabel[tool] ?? `Make a PDF from ${n} photo${n === 1 ? '' : 's'}`;
 }
 
 // Reads the current tool's settings; throws a readable error for bad input.
@@ -441,6 +446,8 @@ const SINGLE_TOOLS = {
 function toolFiles(items) {
   const tool = $('#tool').value;
   const spec = TOOLS[tool];
+  // Tracks dropped together go in name order, so Disc 1 Track 01 comes before Disc 2 Track 01.
+  if (tool === 'join-audio') items = [...items].sort((a, b) => a.file.name.localeCompare(b.file.name, undefined, { numeric: true }));
   for (const { file } of items) {
     if (!spec.accepts(file)) {
       makeRow(file).setStatus(`This tool works with ${spec.what}. Pick another tool above for this file.`, 'err');
@@ -464,7 +471,10 @@ $('#tool-make').addEventListener('click', () => {
   toolItems = [];
   renderToolList();
   const total = files.reduce((s, f) => s + f.size, 0);
-  if (tool === 'merge-pdf') {
+  if (tool === 'join-audio') {
+    const row = makeRow({ name: 'audiobook.m4b', size: total });
+    enqueue(row, (progress) => joinAudiobook(files, progress));
+  } else if (tool === 'merge-pdf') {
     const row = makeRow({ name: 'merged.pdf', size: total });
     enqueue(row, async (progress) => {
       const { blob, pages } = await mergePdfs(files, progress);

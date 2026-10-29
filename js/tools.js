@@ -13,6 +13,7 @@ const loadPdfLib = () => {
 // Which files each tool accepts, and whether it works on a list of files (true) or one file at a time.
 export const TOOLS = {
   trim: { accepts: (f) => ['video', 'audio'].includes(kindOf(f)), multi: false, what: 'videos or audio files' },
+  'join-audio': { accepts: (f) => kindOf(f) === 'audio', multi: true, what: 'audio files' },
   'merge-pdf': { accepts: (f) => kindOf(f) === 'pdf', multi: true, what: 'PDFs' },
   'split-pdf': { accepts: (f) => kindOf(f) === 'pdf', multi: false, what: 'PDFs' },
   'photos-pdf': { accepts: (f) => kindOf(f) === 'image', multi: true, what: 'photos' },
@@ -59,6 +60,50 @@ export function trimMedia(file, { start, end, exact }, progress) {
     return {
       outputs: [{ blob, name: `${baseName(file.name)}-trimmed.${out}` }],
       note: `Kept ${range} without re-encoding, so quality is unchanged.${video ? ' Quick cuts start on the nearest keyframe, so the clip may begin a little early; untick "Quick cut" for an exact cut.' : ''}`,
+    };
+  });
+}
+
+// ---------- audiobook join ----------
+
+// Chapter titles in FFMETADATA: these characters must be escaped with a backslash.
+const escapeMeta = (s) => s.replace(/[=;#\\\n]/g, '\\$&');
+
+// Joins the tracks, in the order given, into one M4B. Each file becomes a chapter, so the book can be navigated by disc and track.
+export function joinAudiobook(files, progress) {
+  return ffmpegJob(files, progress, async (job) => {
+    const n = files.length;
+    const durations = [];
+    for (let i = 0; i < n; i++) {
+      progress?.(`Reading ${files[i].name} (${i + 1} of ${n})…`, i / n);
+      const { duration, audio } = await job.probe(job.inputs[i]);
+      if (!audio) throw new Error(`${files[i].name} has no sound track, so it can't be joined.`);
+      durations.push(duration);
+    }
+    const total = durations.reduce((s, d) => s + d, 0);
+
+    // Chapter times in milliseconds, so each file starts where the previous one ended.
+    let start = 0;
+    const chapters = files.map((file, i) => {
+      const end = start + Math.round(durations[i] * 1000);
+      const chapter = `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${start}\nEND=${end}\ntitle=${escapeMeta(baseName(file.name))}\n`;
+      start = end;
+      return chapter;
+    });
+    const meta = await job.writeText(`;FFMETADATA1\n${chapters.join('')}`, 'txt');
+
+    // Every track is resampled to one format, so files with different sample rates or mono/stereo can be joined.
+    const inputs = job.inputs.flatMap((path) => ['-i', path]);
+    const chains = job.inputs.map((_, i) =>
+      `[${i}:a:0]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a${i}]`);
+    const concat = `${job.inputs.map((_, i) => `[a${i}]`).join('')}concat=n=${n}:v=0:a=1[out]`;
+    const blob = await job.encode([...inputs, '-i', meta, '-filter_complex', [...chains, concat].join(';'),
+      '-map', '[out]', '-map_chapters', String(n), '-c:a', 'aac', '-b:a', '128k', '-f', 'ipod'],
+    'm4b', 'audio/mp4', { duration: total, label: 'Joining' });
+    return {
+      outputs: [{ blob, name: 'audiobook.m4b' }],
+      summary: `Done — ${n} file${n === 1 ? '' : 's'} joined, ${fmtDuration(total)} long, one chapter per file.`,
+      note: 'Re-encoded to AAC 128k so the tracks join cleanly.',
     };
   });
 }
