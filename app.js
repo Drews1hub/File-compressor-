@@ -378,7 +378,7 @@ $('#zip-clear').addEventListener('click', () => { zipItems = []; renderZipList()
 
 const TOOL_TEXT = {
   trim: ['Drop videos or audio to trim', 'Times are minutes:seconds, like 1:30. Leave End blank to keep everything after Start.'],
-  'join-audio': ['Drop the audio tracks, all discs at once', 'Files dropped together are sorted by name, so Disc 1 Track 01 comes before Disc 2 Track 01. Use the arrows to fix the order, then join. Each file becomes a chapter.'],
+  'join-audio': ['Drop the audio tracks, all discs at once', 'Files dropped together are sorted by name, so Disc 1 Track 01 comes before Disc 2 Track 01. Use the arrows to fix the order, then join. The result plays straight through with no breaks between discs.'],
   'merge-pdf': ['Drop the PDFs to merge', 'Pages keep their text and quality. Put the list in order, then merge.'],
   'split-pdf': ['Drop a PDF to split', 'Every part keeps its text selectable.'],
   'photos-pdf': ['Drop the photos for your PDF', 'One photo per page, in the order listed. iPhone HEIC photos work too.'],
