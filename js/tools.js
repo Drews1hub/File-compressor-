@@ -54,7 +54,8 @@ export function trimMedia(file, { start, end, exact }, progress) {
     const e2 = ext(file.name);
     const out = VIDEO_EXT.includes(e2) || AUDIO_EXT.includes(e2) ? e2 : video ? 'mp4' : 'm4a';
     const blob = await job.encode([...timing, '-map', '0:v?', '-map', '0:a?', '-c', 'copy', '-avoid_negative_ts', 'make_zero',
-      ...(['mp4', 'mov', 'm4v', 'm4a'].includes(out) ? ['-movflags', '+faststart'] : [])], out, file.type || 'application/octet-stream', opts);
+      ...(['mp4', 'mov', 'm4v', 'm4a', 'm4b'].includes(out) ? ['-movflags', '+faststart'] : []),
+      ...(out === 'm4b' ? ['-f', 'ipod'] : [])], out, file.type || 'application/octet-stream', opts);
     return {
       outputs: [{ blob, name: `${baseName(file.name)}-trimmed.${out}` }],
       note: `Kept ${range} without re-encoding, so quality is unchanged.${video ? ' Quick cuts start on the nearest keyframe, so the clip may begin a little early; untick "Quick cut" for an exact cut.' : ''}`,

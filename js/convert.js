@@ -6,13 +6,13 @@ import { ffmpegJob } from './engine.js';
 export const FORMAT_LABELS = {
   jpg: 'JPG', png: 'PNG', webp: 'WebP', gif: 'GIF', bmp: 'BMP', tiff: 'TIFF', pdf: 'PDF',
   mp4: 'MP4', webm: 'WebM', mov: 'MOV', mkv: 'MKV', avi: 'AVI',
-  mp3: 'MP3', wav: 'WAV', m4a: 'M4A', ogg: 'OGG', flac: 'FLAC', opus: 'Opus', txt: 'Text (TXT)',
+  mp3: 'MP3', wav: 'WAV', m4a: 'M4A', m4b: 'M4B (audiobook)', ogg: 'OGG', flac: 'FLAC', opus: 'Opus', txt: 'Text (TXT)',
 };
 
 const TARGETS = {
   image: ['jpg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'pdf'],
-  video: ['mp4', 'webm', 'mov', 'mkv', 'avi', 'gif', 'mp3', 'wav', 'm4a'],
-  audio: ['mp3', 'wav', 'm4a', 'ogg', 'flac', 'opus'],
+  video: ['mp4', 'webm', 'mov', 'mkv', 'avi', 'gif', 'mp3', 'wav', 'm4a', 'm4b'],
+  audio: ['mp3', 'wav', 'm4a', 'm4b', 'ogg', 'flac', 'opus'],
   pdf: ['jpg', 'png', 'txt'],
 };
 
@@ -29,14 +29,16 @@ export function targetsFor(file) {
 
 const MIME = {
   mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mkv: 'video/x-matroska', avi: 'video/x-msvideo',
-  gif: 'image/gif', mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', ogg: 'audio/ogg', flac: 'audio/flac',
-  opus: 'audio/ogg',
+  gif: 'image/gif', mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', m4b: 'audio/mp4', ogg: 'audio/ogg',
+  flac: 'audio/flac', opus: 'audio/ogg',
 };
 
 const AUDIO_ARGS = {
   mp3: ['-c:a', 'libmp3lame', '-q:a', '2'],
   wav: ['-c:a', 'pcm_s16le'],
   m4a: ['-c:a', 'aac', '-b:a', '192k'],
+  // Audiobooks: AAC in an MP4 container with the .m4b extension. Chapters carry over from the source.
+  m4b: ['-c:a', 'aac', '-b:a', '128k', '-f', 'ipod'],
   ogg: ['-c:a', 'libvorbis', '-q:a', '5'],
   flac: ['-c:a', 'flac'],
   opus: ['-c:a', 'libopus', '-b:a', '128k'],

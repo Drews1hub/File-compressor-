@@ -3,7 +3,7 @@ export const MB = 1000 * 1000;
 export const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif', 'heic', 'heif', 'tif', 'tiff', 'ico'];
 export const VIDEO_EXT = ['mp4', 'm4v', 'mov', 'mkv', 'webm', 'avi', 'wmv', 'flv', '3gp', '3g2', 'mpg', 'mpeg',
   'mts', 'm2ts', 'ogv'];
-export const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'oga', 'opus', 'flac', 'wma', 'aiff', 'aif', 'amr'];
+export const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'm4b', 'aac', 'ogg', 'oga', 'opus', 'flac', 'wma', 'aiff', 'aif', 'amr'];
 export const OFFICE_EXT = ['docx', 'pptx', 'xlsx'];
 export const TEXT_EXT = ['txt', 'csv', 'tsv', 'json', 'jsonl', 'ndjson', 'md', 'markdown', 'log', 'xml', 'html', 'htm',
   'yaml', 'yml', 'ini', 'toml', 'sql', 'js', 'mjs', 'ts', 'tsx', 'jsx', 'py', 'java', 'c', 'h', 'cpp', 'hpp',

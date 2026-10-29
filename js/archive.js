@@ -1,7 +1,7 @@
 // Bundling files into ZIP or TAR.GZ archives, and reading files out of dropped folders.
 
 // Already-compressed formats gain nothing from deflate, so store them as-is (much faster).
-const STORED = /\.(jpe?g|png|gif|webp|avif|heic|mp4|m4v|mov|mkv|webm|avi|mp3|m4a|aac|ogg|opus|flac|zip|gz|tgz|7z|rar|bz2|xz|docx|pptx|xlsx|pdf)$/i;
+const STORED = /\.(jpe?g|png|gif|webp|avif|heic|mp4|m4v|mov|mkv|webm|avi|mp3|m4a|m4b|aac|ogg|opus|flac|zip|gz|tgz|7z|rar|bz2|xz|docx|pptx|xlsx|pdf)$/i;
 
 function zipAsync(entries) {
   return new Promise((resolve, reject) =>

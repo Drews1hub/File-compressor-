@@ -243,7 +243,7 @@ async function rebuildOffice(entries, maxDim, quality, progress) {
       progress?.(`Images up to ${maxDim}px: ${name.split('/').pop()}`, i / names.length);
       data = await shrinkMedia(data, name, maxDim, quality);
     }
-    out[name] = [data, { level: /\.(jpe?g|png|gif|mp4|m4a|mp3|wav|wmv|emf|wdp)$/i.test(name) ? 0 : 9 }];
+    out[name] = [data, { level: /\.(jpe?g|png|gif|mp4|m4a|m4b|mp3|wav|wmv|emf|wdp)$/i.test(name) ? 0 : 9 }];
   }
   return fflate.zipSync(out);
 }
