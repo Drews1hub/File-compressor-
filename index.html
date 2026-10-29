@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>File Squeeze</title>
+  <meta name="description" content="Free in-browser file compressor that shrinks files under 30 MB for uploading to Claude. Nothing leaves your computer.">
+  <link rel="stylesheet" href="styles.css">
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="vendor/fflate.min.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>File Squeeze</h1>
+      <p class="lede">Shrink files to fit under the upload limit so you can drop them into Claude.
+        Everything runs in your browser — your files are never uploaded anywhere.</p>
+    </header>
+
+    <section class="controls">
+      <label for="target">Target size</label>
+      <div class="target-row">
+        <input id="target" type="number" min="1" max="500" step="1" value="30">
+        <span>MB per file</span>
+      </div>
+    </section>
+
+    <label id="drop" class="drop" for="picker">
+      <input id="picker" type="file" multiple hidden>
+      <strong>Drop files here</strong>
+      <span>or click to choose</span>
+      <small>Images · PDFs · Word / PowerPoint / Excel · text, CSV, JSON, code · anything else gets zipped</small>
+    </label>
+
+    <ul id="results" class="results"></ul>
+
+    <details class="help">
+      <summary>How each file type is handled</summary>
+      <dl>
+        <dt>Images (JPG, PNG, WebP, GIF, BMP)</dt>
+        <dd>Re-encoded as JPEG, lowering quality first and then resolution until it fits.</dd>
+        <dt>PDF</dt>
+        <dd>Each page is turned into a compressed image and rebuilt into a new PDF.
+          Claude can still read it, but text is no longer selectable in the result.</dd>
+        <dt>Word, PowerPoint, Excel (.docx, .pptx, .xlsx)</dt>
+        <dd>Embedded pictures are downsized and recompressed; your text and layout stay the same.</dd>
+        <dt>Text, CSV, JSON, Markdown, code</dt>
+        <dd>Split into several parts that each fit the limit. CSV/TSV parts keep the header row.</dd>
+        <dt>Anything else</dt>
+        <dd>Put into a ZIP at maximum compression. Claude may not open every archive, so use this as a last resort.</dd>
+      </dl>
+      <p>Files already under the target are passed through untouched.</p>
+    </details>
+  </main>
+</body>
+</html>
