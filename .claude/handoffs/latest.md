@@ -1,35 +1,31 @@
-# Handoff: File Squeeze + brand skills (2026-10-29)
+# Handoff: Fitfile + brand skills (2026-10-29)
 
-**Goal:** Free in-browser file compressor + converter (images, video, audio, PDFs, Office, text). Nothing is uploaded to a server. Default target 30 MB (Claude's upload limit).
+**Goal:** Fitfile (formerly File Squeeze): a free in-browser file compressor and converter. Files never leave the browser. Default target is 30 MB, Claude's upload limit. Also: rebuilt `apple` and `dji` brand skills from the live sites.
 
-**Done** (branch `claude/wonderful-hypatia-9g13bo`, repo `Drews1hub/File-compressor-`):
-- Static site: `index.html`, `styles.css`, `app.js` (UI), modules in `js/` (`compress.js`, `convert.js`, `engine.js`, `images.js`, `pdf.js`, `util.js`).
-- Three tabs: **Compress** (goal = Fit a size in MB/KB with presets, Pick a strength Light/Balanced/Strong, or Shrink by %; More options: photo format auto/jpg/webp, photo max side, video max res, remove sound), **Convert** (global "Convert to" select, or per-file picker), **Zip** (ZIP or TAR.GZ, keeps dropped folder structure, `js/archive.js`).
-- **Tools** tab (`js/tools.js`, pdf-lib vendored and lazy-loaded): trim video/audio (exact cut by default, optional quick stream-copy cut), merge PDFs (reorderable list), split PDF (every page / ranges), photos → one PDF (fit/A4/Letter), rotate/flip/resize photos, open ZIP/TAR.GZ. Inspired by tangerineformac.com (Mac app): its file tools, not its radial-wheel UI.
-- "Download all as ZIP" + "Clear list" under the tabs; settings saved in localStorage.
-- Feature set modelled on compress2go.com (features only; own names, wording, layout, colors — user asked not to copy so closely it could cause trouble).
-- Compress: images → JPEG (incl. HEIC via heic2any, TIFF via ffmpeg); video → H.264 MP4 at computed bitrate, ≤30 fps, auto-downscale, `superfast` preset, up to 3 retries; audio → MP3; PDF rasterize; Office media shrink; text split; other → zip.
-- Convert: image ↔ jpg/png/webp/gif/bmp/tiff/pdf; video ↔ mp4/webm/mov/mkv/avi/gif + audio extract; audio ↔ mp3/wav/m4a/ogg/flac/opus; PDF → jpg/png (zip) / txt. Stream copy when codecs fit.
-- ffmpeg.wasm 0.12 (single-thread, no COOP/COEP needed) vendored in `vendor/ffmpeg*`; 32 MB core lazy-downloaded with a progress bar; files mounted via WORKERFS (no memory copy). Cancel button for video/audio jobs.
-- All paths tested headless in Chromium (30 s 1080p clip → 10 MB in ~55 s; rotated iPhone HEVC .mov comes out upright).
+**Done** (repo `Drews1hub/File-compressor-`, working branch `claude/nice-ptolemy-gx39vn`, head `1d15f6b`):
+- App is feature-complete: Compress, Convert, Zip, and Tools tabs (see `index.html`, `app.js`, `js/`, `vendor/`). Last app commit before the branch change: `a5726c1`.
+- Renamed to Fitfile in `index.html`, `README.md`, the download name (`fitfile-results.zip`), and the settings key (`fitfile-settings`). Commit `1d15f6b`. This resets saved settings for existing visitors once.
+- Brand skills rebuilt from the live sites, in `brand-skills/`:
+  - `apple`: measured from apple.com (desktop and mobile).
+  - `dji`: measured from dji.com after the CDN was allowed. Corrected CTAs to chevron links and white outline pills; square tiles; uppercase wordmarks.
+  - Uploadable zips are in `brand-skills/dist/apple.zip` and `brand-skills/dist/dji.zip`. Commits `b771557`, `7373c7f`.
 
 **Decisions:**
-- Hosting via GitHub Pages from this branch, `/ (root)`. Live at https://drews1hub.github.io/File-compressor-/
-- User has no custom domain; suggested renaming repo to `drews1hub.github.io` for a shorter URL (not done).
-- No PR (user hasn't asked).
-- Network access was opened up by the user; compress2go.com and tangerineformac.com were both reviewed. Recommended order for next Tangerine-inspired work: spreadsheets & subtitles conversion (SheetJS, SRT↔VTT), then documents (DOCX→text/HTML/MD via mammoth), then our own quick format picker (not a copy of Tangerine's radial wheel).
+- No PR yet; the user hasn't asked for one.
+- Keep the repo name `File-compressor-`. Renaming it would break the GitHub Pages URL.
+- Don't push to `claude/wonderful-hypatia-9g13bo` without explicit permission. It's the old branch.
+- Skills: the user will upload the zips as new skills in claude.ai (Skills settings), then disable or delete the old plugin-backed `apple` and `dji`. Claude cannot upload skills to the account.
 
-**Open / ideas:**
-- User should hard-refresh the live site and try real files (their 45.9 MB PDF, phone videos).
-- Video encoding is single-threaded: long/4K videos are slow. Multi-thread core would need COOP/COEP (e.g. coi-serviceworker) — not done.
-- Folder drop into Zip tab not tested with a real folder (headless can't simulate it).
-- Possible next: spreadsheets/subtitles/docs conversions (above), PDF compression that keeps text selectable (pdf-lib is now vendored, could recompress embedded images).
+**Open:**
+- Pages still serves `claude/wonderful-hypatia-9g13bo`, so the live site still says "File Squeeze". Fix: in repo Settings → Pages, set the source to `claude/nice-ptolemy-gx39vn` (`/ (root)`). Or give explicit permission to push there. After the switch, hard refresh.
+- Skills upload: the user must do it in claude.ai. Confirm the two new skills appear and the old plugin ones are off.
+- `brand-skills/apple/assets/apple-tokens.css` changed on disk after the last commit, outside this session. The tree is clean now, so it's in HEAD. Check the diff before relying on it.
+- Not yet tested by the user: real phone videos, the 45.9 MB PDF, folder drop into Zip.
+- Ideas from before: multi-thread video (needs COOP/COEP); spreadsheets and subtitle conversion (SheetJS, SRT↔VTT); DOCX→text (mammoth); PDF compression that keeps text selectable.
+- The plugin `data:definite` MCP failed to connect (ENDPOINT_NOT_FOUND). Not needed for this work.
 
-**Where things live:** test files/scripts were in the session scratchpad (lost when container ends).
-
-## Brand skills rebuild (branch `claude/nice-ptolemy-gx39vn`)
-
-- Both www.apple.com and www.dji.com resolved and returned 200. The `apple` and `dji` skills were rebuilt from the live sites into `brand-skills/` (sources), with uploadable `brand-skills/dist/apple.zip` and `brand-skills/dist/dji.zip`. `brand-skills/README.md` lists what changed.
-- The installed skills are synced from claude.ai and are **not** updated yet. The user needs to upload the zips.
-- Apple: fully measured (computed styles plus the site's `--sk-*` variables). Main fix: "Learn more" is the filled pill and "Buy" is the outline pill.
-- DJI: after the user allowed `www-cdn.djiits.com`, the capture was re-run with CSS loaded and the DJI skill was rebuilt from measured values. Main corrections: chevron-link / white-outline CTAs (not blue pills), square tiles, wordmark images, and placeholder colors are not a palette.
+**Where things live:**
+- Live site: https://drews1hub.github.io/File-compressor-/ (currently serves the old branch, see Open).
+- Old per-session recap: `.claude/handoffs/2026-10-29-file-squeeze.md`.
+- Brand skill sources: `brand-skills/apple/`, `brand-skills/dji/`. Each has a README in `brand-skills/README.md`.
+- Live-capture scripts were in the session scratchpad and are lost when the container ends. Rebuild with Playwright if needed.
