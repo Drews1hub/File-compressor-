@@ -4,6 +4,7 @@ export const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif', 'h
 export const VIDEO_EXT = ['mp4', 'm4v', 'mov', 'mkv', 'webm', 'avi', 'wmv', 'flv', '3gp', '3g2', 'mpg', 'mpeg',
   'mts', 'm2ts', 'ogv'];
 export const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'm4b', 'aac', 'ogg', 'oga', 'opus', 'flac', 'wma', 'aiff', 'aif', 'amr'];
+export const EBOOK_EXT = ['epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2'];
 export const OFFICE_EXT = ['docx', 'pptx', 'xlsx'];
 export const TEXT_EXT = ['txt', 'csv', 'tsv', 'json', 'jsonl', 'ndjson', 'md', 'markdown', 'log', 'xml', 'html', 'htm',
   'yaml', 'yml', 'ini', 'toml', 'sql', 'js', 'mjs', 'ts', 'tsx', 'jsx', 'py', 'java', 'c', 'h', 'cpp', 'hpp',
@@ -27,6 +28,7 @@ export function kindOf(file) {
   const type = file.type || '';
   if (type === 'application/pdf' || e === 'pdf') return 'pdf';
   if (OFFICE_EXT.includes(e)) return 'office';
+  if (EBOOK_EXT.includes(e)) return 'ebook';
   if (IMAGE_EXT.includes(e) || (type.startsWith('image/') && e !== 'svg')) return 'image';
   if (VIDEO_EXT.includes(e) || type.startsWith('video/')) return 'video';
   if (AUDIO_EXT.includes(e) || type.startsWith('audio/')) return 'audio';
