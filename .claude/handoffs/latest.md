@@ -1,28 +1,40 @@
-# Handoff: File Squeeze (2026-10-29)
+# Handoff: File Squeeze business research (2026-10-29)
 
-**Goal:** Free in-browser file compressor + converter (images, video, audio, PDFs, Office, text). Nothing is uploaded to a server. Default target 30 MB (Claude's upload limit).
+**Goal:** Decide whether File Squeeze (free in-browser compressor/converter, nothing uploaded) can become a money-making website, and how.
 
-**Done** (branch `claude/wonderful-hypatia-9g13bo`, repo `Drews1hub/File-compressor-`):
-- Static site: `index.html`, `styles.css`, `app.js` (UI), modules in `js/` (`compress.js`, `convert.js`, `engine.js`, `images.js`, `pdf.js`, `util.js`).
-- Three tabs: **Compress** (goal = Fit a size in MB/KB with presets, Pick a strength Light/Balanced/Strong, or Shrink by %; More options: photo format auto/jpg/webp, photo max side, video max res, remove sound), **Convert** (global "Convert to" select, or per-file picker), **Zip** (ZIP or TAR.GZ, keeps dropped folder structure, `js/archive.js`).
-- **Tools** tab (`js/tools.js`, pdf-lib vendored and lazy-loaded): trim video/audio (exact cut by default, optional quick stream-copy cut), merge PDFs (reorderable list), split PDF (every page / ranges), photos → one PDF (fit/A4/Letter), rotate/flip/resize photos, open ZIP/TAR.GZ. Inspired by tangerineformac.com (Mac app): its file tools, not its radial-wheel UI.
-- "Download all as ZIP" + "Clear list" under the tabs; settings saved in localStorage.
-- Feature set modelled on compress2go.com (features only; own names, wording, layout, colors — user asked not to copy so closely it could cause trouble).
-- Compress: images → JPEG (incl. HEIC via heic2any, TIFF via ffmpeg); video → H.264 MP4 at computed bitrate, ≤30 fps, auto-downscale, `superfast` preset, up to 3 retries; audio → MP3; PDF rasterize; Office media shrink; text split; other → zip.
-- Convert: image ↔ jpg/png/webp/gif/bmp/tiff/pdf; video ↔ mp4/webm/mov/mkv/avi/gif + audio extract; audio ↔ mp3/wav/m4a/ogg/flac/opus; PDF → jpg/png (zip) / txt. Stream copy when codecs fit.
-- ffmpeg.wasm 0.12 (single-thread, no COOP/COEP needed) vendored in `vendor/ffmpeg*`; 32 MB core lazy-downloaded with a progress bar; files mounted via WORKERFS (no memory copy). Cancel button for video/audio jobs.
-- All paths tested headless in Chromium (30 s 1080p clip → 10 MB in ~55 s; rotated iPhone HEVC .mov comes out upright).
+**Product state (unchanged this session):** Static site with Compress / Convert / Tools / Zip tabs, live at https://drews1hub.github.io/File-compressor-/ (GitHub Pages). Full feature notes in `.claude/handoffs/2026-10-29-file-squeeze.md`.
+
+**Done this session (research only, no code changes):**
+- Market read: the features are a crowded commodity. The edge is client-side processing: privacy, near-zero hosting cost, no server file limits.
+- Competitor pricing (mostly third-party sources; official pages weren't reachable then):
+  - Smallpdf Pro: about $9/mo billed yearly or $15/mo billed monthly. Free tier reportedly 2 tasks/day.
+  - iLovePDF Premium: about $7/mo or $45–48/yr.
+  - Adobe Acrobat Pro: about $19.99/mo on annual billing, $29.99/mo monthly.
+  - TinyPNG/Tinify API: 500 free per month, then $0.009 each, $0.002 each above 10k.
+  - FreeConvert: $12.99 / $24.99 / $29.99 per month.
+  - CloudConvert: 25 free conversions/day, then credits (prices not found).
+  - Offline one-time desktop compressors: about $15–20.
+- Upload test (headless Chromium, dummy PDF, every outgoing request logged):
+  - File Squeeze: 0 outgoing requests while processing. Claim holds.
+  - Smallpdf: uploads the whole file to Cloudflare R2 as soon as it is picked. Confirmed.
+  - iLovePDF: uploads to `api28.ilovepdf.com/v1/upload`. Confirmed.
+  - FreeConvert, CloudConvert: automation couldn't get through their pages. Reviews say both process on their servers and delete files later (about 8 h and at most 24 h).
+  - Smallpdf and FreeConvert load Microsoft Clarity session recording, plus ad and analytics trackers.
 
 **Decisions:**
-- Hosting via GitHub Pages from this branch, `/ (root)`. Live at https://drews1hub.github.io/File-compressor-/
-- User has no custom domain; suggested renaming repo to `drews1hub.github.io` for a shorter URL (not done).
-- No PR (user hasn't asked).
-- Network access was opened up by the user; compress2go.com and tangerineformac.com were both reviewed. Recommended order for next Tangerine-inspired work: spreadsheets & subtitles conversion (SheetJS, SRT↔VTT), then documents (DOCX→text/HTML/MD via mammoth), then our own quick format picker (not a copy of Tangerine's radial wheel).
+- Network access was set to full by the user.
+- Positioning to pursue: "nothing leaves your device," with proof (for example a network-panel demo).
+- Keep basic compression free. A paid tier should cover batch, large video, or no ads, at about $5–10/mo or $15–20 one-time.
 
-**Open / ideas:**
-- User should hard-refresh the live site and try real files (their 45.9 MB PDF, phone videos).
-- Video encoding is single-threaded: long/4K videos are slow. Multi-thread core would need COOP/COEP (e.g. coi-serviceworker) — not done.
-- Folder drop into Zip tab not tested with a real folder (headless can't simulate it).
-- Possible next: spreadsheets/subtitles/docs conversions (above), PDF compression that keeps text selectable (pdf-lib is now vendored, could recompress embedded images).
+**Open / next steps:**
+1. User to check FreeConvert and CloudConvert by hand: DevTools Network tab, drop a file, look for a large request.
+2. Pick one niche (for example private PDF tools for lawyers or clinics, or fitting a specific upload limit) and write a landing page for it.
+3. Check search demand for that niche's phrases (Google Keyword Planner) and see who ranks.
+4. Add a waitlist or "Pro" button to the live site and measure clicks, then test a single price.
+5. Licensing: the ffmpeg core is GPL-2.0-or-later. Get legal advice or use a compatible build before charging. Check whether the repo has its own LICENSE.
+6. Any analytics added must be privacy-friendly: no session replay, no file names.
+- I offered to draft landing-page copy and pricing options once a niche is chosen.
 
-**Where things live:** test files/scripts were in the session scratchpad (lost when container ends).
+**Where things live:**
+- Repo `Drews1hub/File-compressor-`, branch `claude/trusting-fermat-1p3xvp` (no PR).
+- Test scripts and screenshots were in the session scratchpad and are lost when the container ends.
