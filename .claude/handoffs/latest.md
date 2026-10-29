@@ -1,4 +1,4 @@
-# Handoff: File Squeeze (2026-10-29)
+# Handoff: File Squeeze + brand skills (2026-10-29)
 
 **Goal:** Free in-browser file compressor + converter (images, video, audio, PDFs, Office, text). Nothing is uploaded to a server. Default target 30 MB (Claude's upload limit).
 
@@ -26,3 +26,10 @@
 - Possible next: spreadsheets/subtitles/docs conversions (above), PDF compression that keeps text selectable (pdf-lib is now vendored, could recompress embedded images).
 
 **Where things live:** test files/scripts were in the session scratchpad (lost when container ends).
+
+## Brand skills rebuild (branch `claude/nice-ptolemy-gx39vn`)
+
+- Both www.apple.com and www.dji.com resolved and returned 200. The `apple` and `dji` skills were rebuilt from the live sites into `brand-skills/` (sources), with uploadable `brand-skills/dist/apple.zip` and `brand-skills/dist/dji.zip`. `brand-skills/README.md` lists what changed.
+- The installed skills are synced from claude.ai and are **not** updated yet. The user needs to upload the zips.
+- Apple: fully measured (computed styles plus the site's `--sk-*` variables). Main fix: "Learn more" is the filled pill and "Buy" is the outline pill.
+- DJI: the network policy blocks `www-cdn.djiits.com` (DJI's CSS/CDN), so only HTML-level facts were verified (structure, copy, Open Sans, `#3b63a9`, `#eeeeed`). Removed the bogus `#0000ee` "brand" link color. To verify DJI type sizes, radii, and Sky blue: allow `www-cdn.djiits.com` in the environment's network settings and re-run the capture.

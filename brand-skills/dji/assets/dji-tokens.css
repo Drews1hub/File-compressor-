@@ -1,0 +1,77 @@
+/* DJI-style design tokens. --brand-blue, --wash and the Open Sans family were verified
+   on the live dji.com on 2026-10-29; the rest come from an earlier third-party
+   extraction (approximate, not an official DJI spec).
+   Copy into a page <style>. Load Open Sans from Google Fonts when allowed. */
+
+:root {
+  --sky: #0070d5;          /* pill buttons only */
+  --brand-blue: #3b63a9;   /* category-card fills and chips; never a button */
+  --black: #000000;
+  --black-soft: #272727;
+  --white: #ffffff;
+  --wash: #eeeeed;         /* utility/product card background */
+  --body-strong: #303233;
+  --body-mute: #6c7073;
+
+  --font: "Open Sans", "PingFang SC", "Microsoft YaHei", "Helvetica Neue",
+          "Hiragino Sans GB", "WenQuanYi Micro Hei", Arial, sans-serif;
+
+  --r-card: 4px;
+  --r-pill: 9999px;
+
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 48px; --section: 112px;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--white); color: var(--black);
+       font: 400 16px/1.5 var(--font); letter-spacing: -0.32px; }
+
+/* Type */
+.display-xl { font-size: clamp(32px, 5vw, 40px); font-weight: 500; line-height: 1.1; letter-spacing: 0; }
+.display-lg { font-size: clamp(26px, 4vw, 32px); font-weight: 500; line-height: 1.125; letter-spacing: 0; }
+.heading-sm { font-size: 20px; font-weight: 500; line-height: 1.2; letter-spacing: 0; }
+.body-md    { font-size: 14px; line-height: 1.43; letter-spacing: -0.28px; }
+.meta       { font-size: 14px; color: var(--body-mute); }
+.fine       { font-size: 12px; line-height: 2; color: var(--body-mute); letter-spacing: 0; }
+
+/* Tiles: the surface flip is the section divider */
+.tile        { padding: var(--section) var(--s6); text-align: center; }
+.tile--dark  { background: var(--black); color: var(--white); }
+.tile--light { background: var(--white); color: var(--black); }
+.eyebrow     { font-size: 14px; letter-spacing: -0.28px; margin: 0 0 var(--s2); }
+.tile--dark .eyebrow { color: var(--white); }
+
+/* Buttons: full pill, the single action signal */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 32px; padding: 8px 16px; border-radius: var(--r-pill);
+  font: 400 14px/1 var(--font); letter-spacing: -0.28px; text-decoration: none;
+  background: var(--sky); color: var(--white); border: 1px solid var(--sky);
+  cursor: pointer; transition: transform .15s ease-out;
+}
+.btn:active { transform: scale(0.97); }
+.btn--ghost { background: var(--white); color: var(--sky); }
+.btn:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+.cta-row { display: flex; gap: var(--s3); justify-content: center; margin-top: var(--s5); }
+
+/* Product grid and cards: flat, 4px, wash background, no shadow */
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s5); max-width: 1392px; margin: 0 auto; }
+@media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } .tile { padding: 64px var(--s4); } }
+.card { background: var(--wash); border-radius: var(--r-card); padding: var(--s5); text-align: center; }
+.card img, .placeholder { max-width: 100%; border-radius: 0; }
+.placeholder { display: grid; place-items: center; aspect-ratio: 4 / 3; color: var(--body-mute);
+               background: var(--white); font-size: 12px; }
+
+/* Nav: white, 64px, no border or shadow */
+.nav { height: 64px; padding: 0 var(--s6); display: flex; align-items: center; gap: var(--s6);
+       background: var(--white); font-size: 14px; }
+
+/* Category card: brand-blue surface, white text */
+.card--field { background: var(--brand-blue); color: var(--white); text-align: left; }
+.card--field a { color: var(--white); text-decoration: underline; }
+
+/* Editorial photo card */
+.editorial { position: relative; aspect-ratio: 21 / 9; background: var(--black-soft); color: var(--white);
+             display: grid; align-items: end; justify-items: center; padding: var(--s6); }
+
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }

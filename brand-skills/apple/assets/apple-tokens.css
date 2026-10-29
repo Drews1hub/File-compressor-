@@ -1,0 +1,126 @@
+/* Apple-style design tokens. Values were measured from apple.com on 2026-10-29
+   (its --sk-* custom properties and computed styles). Apple doesn't publish them as a spec.
+   Design to the roles; copy this block into a page's <style> and build on the variables. */
+
+:root {
+  /* Color roles (light) */
+  --bg: #ffffff;
+  --bg-alt: #f5f5f7;          /* alternate tile / section (--sk-fill-tertiary) */
+  --bg-soft: #fafafc;         /* off-white fill (--sk-fill-secondary) */
+  --bg-dark: #000000;         /* dark product tile */
+  --label: #1d1d1f;           /* primary text */
+  --label-2: #6e6e73;         /* secondary text */
+  --label-3: #86868b;         /* tertiary: availability lines, captions */
+  --separator: #d2d2d7;
+  --fill-quiet: #e8e8ed;
+  --accent: #0071e3;          /* filled buttons, focus ring */
+  --accent-link: #0066cc;     /* text links and outline buttons */
+  --new: #b64400;             /* "New" eyebrow */
+  --success: #008009;
+  --danger: #e30000;
+
+  /* Glass (controls layer only) */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(0, 0, 0, 0.08);
+
+  /* Type */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+          "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Space: 8pt grid with 4pt subdivisions */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px;
+  --s6: 32px; --s7: 48px; --s8: 64px; --s9: 96px;
+  --section: 144px;           /* product-page section padding */
+  --tile-gap: 12px;           /* white gap between homepage tiles */
+  --content-max: 1260px;
+
+  /* Shape and motion */
+  --radius-card: 28px;        /* product-page cards */
+  --radius-control: 12px;
+  --radius-pill: 980px;
+  --tap: 44px;                /* minimum interactive target */
+  --ease: cubic-bezier(0.28, 0.11, 0.32, 1);
+}
+
+:root:not([data-theme="light"]) {
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000; --bg-alt: #1d1d1f; --bg-soft: #161617;
+    --label: #f5f5f7; --label-2: #a1a1a6; --separator: #424245; --fill-quiet: #333336;
+    --accent-link: #2997ff;
+    --glass-bg: rgba(29, 29, 31, 0.8); --glass-border: rgba(255, 255, 255, 0.12);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #000000; --bg-alt: #1d1d1f; --bg-soft: #161617;
+  --label: #f5f5f7; --label-2: #a1a1a6; --separator: #424245; --fill-quiet: #333336;
+  --accent-link: #2997ff;
+  --glass-bg: rgba(29, 29, 31, 0.8); --glass-border: rgba(255, 255, 255, 0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--label);
+  font: 400 17px/1.47 var(--font); letter-spacing: -0.022em; -webkit-font-smoothing: antialiased;
+}
+
+/* Type scale (marketing, measured desktop sizes; mobile collapses to 32px / 19px) */
+.page-title { font-size: clamp(48px, 7vw, 80px); font-weight: 600; line-height: 1.05; letter-spacing: -0.015em; }
+.display    { font-size: clamp(32px, 4.5vw, 56px); font-weight: 600; line-height: 1.07; letter-spacing: -0.005em; }
+.title      { font-size: clamp(32px, 3.4vw, 48px); font-weight: 600; line-height: 1.08; letter-spacing: -0.003em; }
+.tile-title { font-size: clamp(32px, 3vw, 40px); font-weight: 600; line-height: 1.1; }
+.lead       { font-size: clamp(19px, 2.2vw, 28px); font-weight: 400; line-height: 1.14; letter-spacing: 0.007em; }
+.avail      { font-size: 14px; line-height: 1.29; color: var(--label-3); }
+.small      { font-size: 12px; line-height: 1.33; color: var(--label-2); letter-spacing: -0.01em; }
+
+/* Homepage tiles: the background change is the divider, with a thin white gap */
+.tiles      { display: grid; gap: var(--tile-gap); padding: var(--tile-gap); background: var(--bg); }
+.tiles--2   { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 734px) { .tiles--2 { grid-template-columns: 1fr; } }
+.tile       { background: var(--bg-alt); padding: 56px var(--s5) 0; text-align: center; overflow: hidden; }
+.tile--dark { background: var(--bg-dark); color: #f5f5f7; --label-2: #a1a1a6; --accent-link: #2997ff; }
+
+/* Product-page sections and cards */
+.section      { padding: var(--section) var(--s5); }
+.section--alt { background: var(--bg-alt); }
+.wrap         { max-width: var(--content-max); margin: 0 auto; }
+.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); flex-wrap: wrap; }
+.card         { background: var(--bg); border-radius: var(--radius-card); padding: var(--s6); }
+
+/* Links and buttons: blue means "you can act" */
+a { color: var(--accent-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.chev::after { content: " \203A"; }  /* "Buy >" style text link */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: var(--tap); padding: 11px 21px; border-radius: var(--radius-pill);
+  background: var(--accent); color: #fff; font: 400 17px/1.18 var(--font);
+  border: 1px solid transparent; cursor: pointer; transition: background .3s var(--ease);
+}
+.btn:hover { background: #0077ed; text-decoration: none; }
+.btn--outline { background: transparent; color: var(--accent-link); border-color: var(--accent-link); }
+.btn--outline:hover { background: var(--accent-link); color: #fff; }
+.btn--sm { min-height: 36px; padding: 8px 15px; font-size: 14px; }
+.btn--media { background: #fff; color: #000; }
+.btn-row { display: flex; gap: var(--s3); justify-content: center; flex-wrap: wrap; margin-top: var(--s4); }
+.btn:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Frosted bar (controls layer only) */
+.glass {
+  background: var(--glass-bg); border-bottom: 0.5px solid var(--glass-border);
+  -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+}
+.nav { position: sticky; top: 0; z-index: 10; height: 44px; display: flex;
+       align-items: center; justify-content: center; gap: var(--s6); font-size: 12px; }
+.nav a { color: var(--label); opacity: .8; }
+
+/* Motion only when allowed */
+@media (prefers-reduced-motion: no-preference) {
+  .reveal { opacity: 0; transform: translateY(24px);
+            transition: opacity .7s var(--ease), transform .7s var(--ease); }
+  .reveal.in { opacity: 1; transform: none; }
+}
