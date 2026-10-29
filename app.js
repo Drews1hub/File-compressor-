@@ -1,6 +1,6 @@
 import * as pdfjsLib from './vendor/pdf.min.mjs';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.min.mjs', import.meta.url).href;
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.shim.mjs', import.meta.url).href;
 
 const MB = 1000 * 1000;
 // Aim a little under the limit so rounding on the upload side never tips a file over.
