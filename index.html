@@ -12,13 +12,30 @@
   <script type="module" src="app.js"></script>
 </head>
 <body>
-  <main>
-    <header>
-      <h1>File Squeeze</h1>
-      <p class="lede">Compress and convert images, videos, audio and PDFs.
-        Everything runs in your browser — your files are never uploaded anywhere.</p>
-    </header>
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <span class="wordmark">File Squeeze</span>
+      <span class="topbar-note">Runs in your browser</span>
+    </div>
+  </nav>
 
+  <header class="hero">
+    <p class="eyebrow">Free File Compressor and Converter for Photos, Video, Audio and PDFs</p>
+    <h1 class="wordmark">File Squeeze</h1>
+    <p class="tagline">Shrink It Here. Keep It Yours</p>
+    <p class="lede">Everything runs in your browser. Your files never leave your device.</p>
+    <div class="cta-row">
+      <a class="link-cta" href="#app">Get Started</a>
+      <a class="link-cta" href="#help">How It Works</a>
+    </div>
+    <ul class="specs">
+      <li><strong>0</strong><span>Files sent to a server</span></li>
+      <li><strong>30 MB</strong><span>Default target, ready for Claude</span></li>
+      <li><strong>4</strong><span>Compress, Convert, Tools, Zip</span></li>
+    </ul>
+  </header>
+
+  <main id="app">
     <div class="tabs" role="tablist">
       <button role="tab" id="tab-compress" aria-controls="panel-compress" aria-selected="true">Compress</button>
       <button role="tab" id="tab-convert" aria-controls="panel-convert" aria-selected="false">Convert</button>
@@ -241,10 +258,11 @@
     <div id="bulk" class="bulk" hidden>
       <button type="button" id="download-all" class="primary">Download all as ZIP</button>
       <button type="button" id="clear-results">Clear list</button>
+      <label class="check" id="number-label"><input type="checkbox" id="number-files" checked> Number files in list order (01, 02, …)</label>
     </div>
     <ul id="results" class="results"></ul>
 
-    <details class="help">
+    <details class="help" id="help">
       <summary>How compression works for each file type</summary>
       <dl>
         <dt>Images (JPG, PNG, WebP, GIF, BMP, HEIC, TIFF)</dt>
@@ -271,5 +289,9 @@
         Video and audio need a one-time 32 MB download of the converter engine, which your browser then keeps.</p>
     </details>
   </main>
+
+  <footer class="site-footer">
+    <p>Everything happens on your device. Built with pdf.js, jsPDF, pdf-lib, fflate, heic2any and ffmpeg.wasm.</p>
+  </footer>
 </body>
 </html>

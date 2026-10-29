@@ -13,7 +13,10 @@ A free file compressor and converter that runs entirely in your web browser. You
 - **Tools**: trim a video or audio clip, merge PDFs, split a PDF (every page or chosen ranges, text stays selectable),
   turn photos into one PDF (fit, A4 or Letter), rotate / flip / resize photos, and open ZIP or TAR.GZ archives.
 - **Zip** bundles files or whole folders (structure kept) into a ZIP or TAR.GZ.
-- **Download all** saves every result in one ZIP. Settings are remembered in your browser.
+- **Download all** saves every result in one ZIP, in list order, numbered `01 - …`, `02 - …` so tracks of an
+  audiobook stay in sequence (untick *Number files in list order* to keep the plain names). Each batch of
+  picked or dropped files is sorted by name the way people number tracks (Track 2 before Track 10), and later
+  batches go below earlier ones. Settings are remembered in your browser.
 
 ## Compress: how each file type is handled
 

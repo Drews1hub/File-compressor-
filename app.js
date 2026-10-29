@@ -17,7 +17,7 @@ const convertTo = $('#convert-to');
 
 const SETTINGS_KEY = 'file-squeeze-settings';
 const SETTING_FIELDS = ['#target', '#unit', '#percent', '#image-format', '#max-side', '#max-res', '#mute', '#convert-to',
-  '#archive-type', '#tool', '#pdf-page'];
+  '#archive-type', '#tool', '#pdf-page', '#number-files'];
 const checked = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
 
 function saveSettings() {
@@ -106,7 +106,7 @@ let allOutputs = [];
 
 function updateBulk() {
   $('#bulk').hidden = !results.children.length;
-  $('#download-all').hidden = allOutputs.length < 2;
+  $('#download-all').hidden = $('#number-label').hidden = allOutputs.length < 2;
 }
 
 function makeRow(file) {
@@ -125,7 +125,8 @@ function makeRow(file) {
     <div class="note" hidden></div>
     <div class="downloads"></div>`;
   li.querySelector('.name').textContent = `${file.name} · ${fmt(file.size)}`;
-  results.prepend(li);
+  // Oldest first, so the list (and "Download all") reads in the order files were added.
+  results.append(li);
   updateBulk();
 
   const status = li.querySelector('.status');
@@ -155,7 +156,7 @@ function makeRow(file) {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = name;
-        a.textContent = `⬇ ${name} (${fmt(blob.size)})`;
+        a.textContent = `Download ${name} (${fmt(blob.size)})`;
         box.append(a);
         allOutputs.push({ blob, name, li });
       }
@@ -449,7 +450,16 @@ $('#download-all').addEventListener('click', async () => {
   const label = btn.textContent;
   try {
     btn.textContent = 'Packing…';
-    const blob = await makeZip(allOutputs.map(({ name, blob: b }) => ({ path: name, blob: b })));
+    // List order, not finishing order, so a retried or late-converted file keeps its place.
+    const rows = [...results.children];
+    const ordered = rows.flatMap((li) => allOutputs.filter((o) => o.li === li));
+    // A number in front keeps the order in players and file managers that sort by name ("Track 10" after "Track 9").
+    const width = Math.max(2, String(ordered.length).length);
+    const number = $('#number-files').checked;
+    const blob = await makeZip(ordered.map(({ name, blob: b }, i) => ({
+      path: number ? `${String(i + 1).padStart(width, '0')} - ${name}` : name,
+      blob: b,
+    })));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'file-squeeze-results.zip';
@@ -481,9 +491,15 @@ const HANDLE = {
   tools: toolFiles,
 };
 
+// Browsers hand over picked or dropped files (and folder contents) in no reliable order,
+// so each batch is sorted by name the way people number tracks: "Track 2" before "Track 10".
+const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const inOrder = (items) => items.sort((a, b) => byName.compare(a.path, b.path));
+
 for (const drop of $$('.drop')) {
   const input = drop.querySelector('input');
-  const handle = HANDLE[drop.dataset.mode];
+  const run = HANDLE[drop.dataset.mode];
+  const handle = (items) => run(inOrder(items));
   input.addEventListener('change', () => {
     handle([...input.files].map((file) => ({ file, path: file.name })));
     input.value = '';
@@ -516,7 +532,7 @@ for (const b of $$('.presets button')) {
 loadSettings();
 showGoal();
 showTool();
-for (const el of $$('#panel-compress input, #panel-compress select, #convert-to, #archive-type, #tool, #pdf-page')) {
+for (const el of $$('#panel-compress input, #panel-compress select, #convert-to, #archive-type, #tool, #pdf-page, #number-files')) {
   el.addEventListener('change', () => { showGoal(); saveSettings(); });
 }
 $('#percent').addEventListener('input', showGoal);
