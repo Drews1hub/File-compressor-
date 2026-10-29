@@ -99,12 +99,14 @@ function canCopy(to, { video, audio }) {
 // File name and tags for an audiobook. The title names the file and is stored as the book's title and album,
 // which is what iTunes lists it under. It is also flagged as an audiobook (media type 2, M4B file type)
 // so iTunes puts it under Audiobooks, with chapter navigation.
-export function audiobookTags(title = '', fallback = 'audiobook') {
+export function audiobookTags(title = '', fallback = 'audiobook', author = '') {
   const name = title.trim();
+  const by = author.trim();
   const clean = (s) => s.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
   return {
     file: `${clean(name) || fallback}.m4b`,
     meta: [...(name ? ['-metadata', `title=${name}`, '-metadata', `album=${name}`] : []),
+      ...(by ? ['-metadata', `artist=${by}`, '-metadata', `album_artist=${by}`] : []),
       '-metadata', 'media_type=2', '-metadata', 'genre=Audiobook', '-brand', 'M4B '],
   };
 }

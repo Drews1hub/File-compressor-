@@ -197,15 +197,17 @@ function readTracks(files, progress) {
 
 // One audiobook file per track, all tagged with the same album and numbered in order, so iTunes lists them as one
 // book you can open to see every track. AAC tracks are copied as they are; others are re-encoded to AAC 192k.
-async function separateTracks(files, progress, title) {
+async function separateTracks(files, progress, title, author) {
   const n = files.length;
   const book = title || 'Audiobook';
+  // iTunes groups tracks by album artist, so the author goes there; without one, the book title stands in.
+  const artist = author || book;
   const { durations, infos, total } = await readTracks(files, progress);
   const blobs = await encodeEach(files, durations, total, progress, encodeWorkers(n), (i, job) => ({
     args: ['-i', job.input, '-map', '0:a:0',
       ...(infos[i].codec === 'aac' ? ['-c:a', 'copy'] : ['-af', TO_STEREO_44K, '-c:a', 'aac', '-b:a', '192k']),
-      '-metadata', `title=${baseName(files[i].name)}`, '-metadata', `album=${book}`, '-metadata', `artist=${book}`,
-      '-metadata', `album_artist=${book}`,
+      '-metadata', `title=${baseName(files[i].name)}`, '-metadata', `album=${book}`, '-metadata', `artist=${artist}`,
+      '-metadata', `album_artist=${artist}`,
       '-metadata', `track=${i + 1}/${n}`, '-metadata', 'media_type=2', '-metadata', 'genre=Audiobook',
       '-brand', 'M4B ', '-f', 'ipod'],
     ext: 'm4b',
@@ -225,9 +227,9 @@ async function separateTracks(files, progress, title) {
 // Joins the tracks, in the order given, into one M4B. With several files each one becomes a chapter,
 // so the book is a single file that can still be navigated by disc and track.
 // A single file keeps whatever chapters it already has.
-export async function joinAudiobook(files, progress, { title = '', separate = false } = {}) {
-  if (separate) return separateTracks(files, progress, title.trim());
-  const book = audiobookTags(title);
+export async function joinAudiobook(files, progress, { title = '', author = '', separate = false } = {}) {
+  if (separate) return separateTracks(files, progress, title.trim(), author.trim());
+  const book = audiobookTags(title, 'audiobook', author);
   const n = files.length;
 
   // Pass 1: read every track. If they are all AAC in one format they are copied straight in (lossless, seconds).
