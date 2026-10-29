@@ -7,12 +7,26 @@ export const isDrawing = (name) => DRAWING_EXT.includes(ext(name));
 
 // ---------- 2D drawings ----------
 
-async function dxfToSvg(file, progress) {
-  progress?.('Reading the drawing…');
+// DWG is AutoCAD's closed format; LibreDWG (compiled to WebAssembly) rewrites it as a DXF that the rest can draw.
+async function dwgToDxfBytes(file, progress) {
+  progress?.('Starting the DWG reader…');
+  const { LibreDwg } = await import('../vendor/libredwg/dist/libredwg-web.js');
+  const lib = await LibreDwg.create(new URL('../vendor/libredwg/wasm', import.meta.url).href);
+  progress?.('Reading the DWG file…', 0.2);
+  let bytes = null;
+  try {
+    bytes = lib.dwg_write_dxf(await file.arrayBuffer());
+  } catch { /* handled below */ }
+  if (!bytes?.length) throw new Error("Couldn't read this DWG file. It may be damaged, or saved by a newer version of AutoCAD than this reader supports.");
+  return bytes;
+}
+
+async function dxfToSvg(text, progress) {
+  progress?.('Reading the drawing…', 0.3);
   const { Helper } = await import('../vendor/dxf.mjs');
   let svg;
   try {
-    svg = new Helper(await file.text()).toSVG();
+    svg = new Helper(text).toSVG();
   } catch {
     throw new Error("Couldn't read this DXF file. It may be damaged or use an unsupported variant.");
   }
@@ -81,19 +95,29 @@ async function canvasToPdf(canvas) {
 
 async function convertDrawing(file, to, progress) {
   const name = baseName(file.name);
-  const svgText = await dxfToSvg(file, progress);
+  let text;
+  const isDwg = ext(file.name) === 'dwg';
+  const caveat = isDwg ? ' DWG files are read by an open-source reader, so a few shape types (some curves, text) can be missing.' : '';
+  if (isDwg) {
+    const bytes = await dwgToDxfBytes(file, progress);
+    if (to === 'dxf') return { outputs: [{ blob: new Blob([bytes], { type: 'application/dxf' }), name: `${name}.dxf` }], note: 'Rewritten as a DXF with the shapes and layers kept. Anything the reader could not decode is left out.' };
+    text = new TextDecoder().decode(bytes);
+  } else {
+    text = await file.text();
+  }
+  const svgText = await dxfToSvg(text, progress);
   const prepared = prepareSvg(svgText);
   if (to === 'svg') {
     const sized = prepared.svg.replace('width="100%" height="100%"', `width="${Math.round(prepared.w)}" height="${Math.round(prepared.h)}"`);
-    return { outputs: [{ blob: new Blob([sized], { type: 'image/svg+xml' }), name: `${name}.svg` }], note: 'Lines and shapes only. Text labels and fills are not drawn.' };
+    return { outputs: [{ blob: new Blob([sized], { type: 'image/svg+xml' }), name: `${name}.svg` }], note: `Lines and shapes only. Text labels and fills are not drawn.${caveat}` };
   }
   progress?.('Drawing the picture…', 0.5);
   const canvas = await rasterize(prepared, 3000);
   if (to === 'png') {
-    return { outputs: [{ blob: await canvasToBlob(canvas, 'image/png'), name: `${name}.png` }], note: 'On a white background, up to 3000 px wide.' };
+    return { outputs: [{ blob: await canvasToBlob(canvas, 'image/png'), name: `${name}.png` }], note: `On a white background, up to 3000 px wide.${caveat}` };
   }
   progress?.('Making the PDF…', 0.8);
-  return { outputs: [{ blob: await canvasToPdf(canvas), name: `${name}.pdf` }], note: 'One page, scaled to fit A4. The drawing is a picture inside the PDF, not editable lines.' };
+  return { outputs: [{ blob: await canvasToPdf(canvas), name: `${name}.pdf` }], note: `One page, scaled to fit A4. The drawing is a picture inside the PDF, not editable lines.${caveat}` };
 }
 
 // ---------- 3D models ----------

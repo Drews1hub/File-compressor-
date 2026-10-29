@@ -12,7 +12,7 @@ export const FORMAT_LABELS = {
   mp3: 'MP3', wav: 'WAV', m4a: 'M4A', m4b: 'M4B (audiobook)', ogg: 'OGG', flac: 'FLAC', opus: 'Opus', txt: 'Text (TXT)',
   'pdf-ocr': 'Searchable PDF (OCR)', 'txt-ocr': 'Text from scan (OCR)',
   epub: 'EPUB (e-book)', html: 'Web page (HTML)',
-  svg: 'SVG (vector drawing)', stl: 'STL (3D model)', obj: 'OBJ (3D model)',
+  dxf: 'DXF (CAD drawing)', svg: 'SVG (vector drawing)', stl: 'STL (3D model)', obj: 'OBJ (3D model)',
 };
 
 const TARGETS = {
@@ -26,7 +26,7 @@ const TARGETS = {
 // What each CAD file type can become: drawings become pictures, 3D models become other 3D formats or a preview picture.
 const CAD_TARGETS = {
   dxf: ['svg', 'png', 'pdf'],
-  dwg: ['svg', 'png', 'pdf'],
+  dwg: ['dxf', 'svg', 'png', 'pdf'],
   stl: ['obj', 'png'],
   obj: ['stl', 'png'],
   step: ['stl', 'obj', 'png'],
