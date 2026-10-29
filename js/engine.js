@@ -6,13 +6,16 @@ import { fmt } from './util.js';
 const CORE = new URL('../vendor/ffmpeg-core/', import.meta.url).href;
 const WASM_BYTES = 32232419; // used for the download bar; content-length is unreliable when gzipped
 
-let enginePromise = null;
-let wasmURL = null;
+let wasmPromise = null;
 let jobCount = 0;
-let cancelled = false;
 
-async function fetchWasm(progress) {
-  if (wasmURL) return wasmURL;
+// The engine core is downloaded once, however many jobs start at the same time.
+function fetchWasm(progress) {
+  wasmPromise ??= downloadWasm(progress).catch((e) => { wasmPromise = null; throw e; });
+  return wasmPromise;
+}
+
+async function downloadWasm(progress) {
   progress?.(`Downloading the video engine (one time only, ${fmt(WASM_BYTES)})…`, 0);
   const res = await fetch(CORE + 'ffmpeg-core.wasm');
   if (!res.ok || !res.body) throw new Error("Couldn't download the video engine. Check your connection and try again.");
@@ -26,8 +29,7 @@ async function fetchWasm(progress) {
     loaded += value.length;
     progress?.(`Downloading the video engine (one time only, ${fmt(WASM_BYTES)})…`, Math.min(1, loaded / WASM_BYTES));
   }
-  wasmURL = URL.createObjectURL(new Blob(chunks, { type: 'application/wasm' }));
-  return wasmURL;
+  return URL.createObjectURL(new Blob(chunks, { type: 'application/wasm' }));
 }
 
 // A stalled download or a worker that never reports back would otherwise hold up every file queued behind it.
@@ -41,33 +43,25 @@ function withTimeout(promise, ms, message) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-function getEngine(progress) {
-  if (!enginePromise) {
-    const start = (async () => {
-      const wasm = await fetchWasm(progress);
-      progress?.('Starting the video engine…');
-      const ff = new FFmpeg();
-      await ff.load({ coreURL: CORE + 'ffmpeg-core.js', wasmURL: wasm });
-      return ff;
-    })();
-    enginePromise = withTimeout(start, START_TIMEOUT_MS,
-      "The video engine didn't start. Check your connection, then reload the page and try again.");
-    // A failed or abandoned start is forgotten, so the next job tries again from scratch.
-    enginePromise.catch(() => { enginePromise = null; });
-  }
-  return enginePromise;
+// Each job gets its own engine, so several jobs can run side by side (see app.js).
+async function startEngine(progress) {
+  const wasm = await fetchWasm(progress);
+  progress?.('Starting the video engine…');
+  const ff = new FFmpeg();
+  await ff.load({ coreURL: CORE + 'ffmpeg-core.js', wasmURL: wasm });
+  return ff;
 }
 
-function resetEngine() {
-  const p = enginePromise;
-  enginePromise = null;
-  p?.then((ff) => ff.terminate()).catch(() => {});
+function shutdown(ff) {
+  try { ff.terminate(); } catch { /* already gone */ }
 }
 
-// Stops whatever ffmpeg is doing. The engine restarts on the next job.
-export function cancelEngine() {
-  cancelled = true;
-  resetEngine();
+// Engines stopped by cancelEngine(), keyed by the progress callback a job reports through.
+const stoppers = new WeakMap();
+
+// Stops the engine running the job that reports through `progress`. Other jobs keep going.
+export function cancelEngine(progress) {
+  stoppers.get(progress)?.();
 }
 
 const toSeconds = (h, m, s) => Number(h) * 3600 + Number(m) * 60 + Number(s);
@@ -88,8 +82,11 @@ function parseInfo(text) {
 
 // Mounts `file` read-only inside ffmpeg (no copy into memory), probes it, and hands `fn` a job object.
 export async function ffmpegJob(file, progress, fn) {
-  cancelled = false;
-  const ff = await getEngine(progress);
+  let cancelled = false;
+  const ff = await withTimeout(startEngine(progress), START_TIMEOUT_MS,
+    "The video engine didn't start. Check your connection, then reload the page and try again.");
+  const stop = () => { cancelled = true; shutdown(ff); };
+  if (progress) stoppers.set(progress, stop);
   const id = ++jobCount;
   const dir = `/in${id}`;
   await ff.createDir(dir);
@@ -152,20 +149,13 @@ export async function ffmpegJob(file, progress, fn) {
     return await fn(job);
   } catch (e) {
     if (cancelled) throw new Error('Cancelled.');
-    // An out-of-memory abort leaves the engine unusable, so start fresh next time.
     if (/abort|memory|terminate|RuntimeError/i.test(String(e?.message ?? e))) {
-      resetEngine();
       throw new Error('Ran out of memory. Try a shorter file, or close other tabs and try again.');
     }
     throw e;
   } finally {
-    if (enginePromise) {
-      for (const out of outputs) await ff.deleteFile(out).catch(() => {});
-      await ff.unmount(dir).catch(() => {});
-      await ff.deleteDir(dir).catch(() => {});
-    }
-    // Shut the engine down after every job, so memory from one file can't build up across a long queue.
-    // The next job starts a fresh engine (the 32 MB download is reused, so this only costs a moment).
-    resetEngine();
+    if (progress) stoppers.delete(progress);
+    // Each job's engine is shut down when it finishes, so memory from one file can't build up across a long queue.
+    shutdown(ff);
   }
 }

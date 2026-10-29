@@ -1,6 +1,6 @@
 import { MB, fmt, kindOf } from './js/util.js';
 import { COMPRESSORS } from './js/compress.js';
-import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
+import { convert, targetsFor, FORMAT_LABELS, AUDIO_TARGETS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
 import { TOOLS, parseTime, trimMedia, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js';
@@ -73,12 +73,33 @@ function compressOptions(limit) {
 
 // One file at a time: big images, PDFs and videos need a lot of memory.
 let queue = Promise.resolve();
-let running = null;
+
+// Audio-only jobs are the exception: each gets its own encoder, so a few run side by side.
+// Files over the size limit still wait their turn, to keep memory in check.
+const PARALLEL_AUDIO = 3;
+const PARALLEL_AUDIO_MAX_SIZE = 150 * MB;
+let audioRunning = 0;
+const audioWaiting = [];
+
+function acquireAudio() {
+  if (audioRunning < PARALLEL_AUDIO) { audioRunning++; return Promise.resolve(); }
+  return new Promise((resolve) => audioWaiting.push(resolve));
+}
+
+function releaseAudio() {
+  const next = audioWaiting.shift();
+  if (next) next(); // the slot passes straight to the next waiting job
+  else audioRunning--;
+}
+
+// Whether a job on this file (converting to `to`, or compressing when `to` is null) can run beside others.
+const canRunBeside = (file, to = null) => kindOf(file) === 'audio' && file.size <= PARALLEL_AUDIO_MAX_SIZE
+  && (to === null || AUDIO_TARGETS.includes(to));
 
 // The most recently queued job that hasn't finished yet, so a waiting row can name what it's waiting for.
 let lastQueued = null;
 
-function enqueue(row, run) {
+function enqueue(row, run, { beside = false } = {}) {
   // A new batch starts when nothing from the last one is still waiting or working.
   if ([...batch].every((r) => r.finished || !r.li.isConnected)) batch.clear();
   row.frac = 0;
@@ -93,17 +114,23 @@ function enqueue(row, run) {
   row.setStatus(ahead ? `Waiting for ${ahead.name} to finish…` : 'Waiting…');
   row.cancelBtn.hidden = false;
   row.li.dataset.busy = '';
-  lastQueued = row;
-  queue = queue.then(async () => {
+  const start = async () => {
     try {
       if (row.cancelled || row.ticket !== ticket) return;
-      running = row;
+      row.running = true;
       await row.work(run);
     } finally {
-      running = null;
+      row.running = false;
       if (lastQueued === row) lastQueued = null;
     }
-  });
+  };
+  if (beside) {
+    row.setStatus(audioRunning < PARALLEL_AUDIO ? 'Starting…' : 'Waiting…');
+    row.turn = acquireAudio().then(start).finally(releaseAudio);
+  } else {
+    lastQueued = row;
+    queue = queue.then(start);
+  }
 }
 
 // ---------- overall progress ring ----------
@@ -174,6 +201,7 @@ function makeRow(file) {
     name: file.name,
     cancelBtn,
     cancelled: false,
+    running: false,
     setStatus(msg, cls = '') { status.textContent = msg; status.className = `status ${cls}`; },
     progress(msg, frac) {
       status.textContent = msg;
@@ -201,14 +229,14 @@ function makeRow(file) {
     // Every job reports progress often, so a cancel takes effect at its next progress update.
     async work(fn) {
       row.progress('Starting…');
+      // Kept on the row so a cancel can find the encoder that's reporting through it.
+      const report = (msg, frac) => {
+        if (row.cancelled) throw new Error('Cancelled.');
+        row.progress(msg, frac);
+      };
+      row.report = report;
       try {
-        const res = await Promise.race([
-          fn((msg, frac) => {
-            if (row.cancelled) throw new Error('Cancelled.');
-            row.progress(msg, frac);
-          }),
-          aborted,
-        ]);
+        const res = await Promise.race([fn(report), aborted]);
         if (row.cancelled) throw new Error('Cancelled.');
         const { outputs, note: text, summary } = res;
         row.setStatus(summary, 'ok');
@@ -228,15 +256,15 @@ function makeRow(file) {
   };
 
   // Stops this row's job: a waiting job is skipped, a running one stops at its next step
-  // (video and audio stop at once, because the converter engine is restarted).
+  // (video and audio stop at once, because their encoder is shut down).
   row.cancel = () => {
     if (!('busy' in li.dataset)) return;
     row.cancelled = true;
     cancelBtn.hidden = true;
-    if (running === row) {
+    if (row.running) {
       row.setStatus('Cancelling…', 'err');
       abort(new Error('Cancelled.'));
-      cancelEngine();
+      cancelEngine(row.report);
     } else {
       row.setStatus('Cancelled.', 'err');
       delete li.dataset.busy;
@@ -281,7 +309,7 @@ function compressFile(file) {
         ? 'Kept as is.'
         : `Done — ${fmt(file.size)} → ${fmt(total)} (${pct}% of the original).`;
     return res;
-  });
+  }, { beside: canRunBeside(file) });
 }
 
 // ---------- convert ----------
@@ -313,7 +341,7 @@ function convertFile(file) {
         button.disabled = select.disabled = false;
         button.textContent = 'Convert again';
       }
-    });
+    }, { beside: canRunBeside(file, to) });
   };
   button.addEventListener('click', start);
 

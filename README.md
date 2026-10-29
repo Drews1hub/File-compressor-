@@ -52,6 +52,8 @@ Video compression runs on your own processor, so expect it to take roughly 1–3
 | 3D models: STEP / STP, IGES / IGS, BREP | STL, OBJ, or a shaded PNG preview |
 | 3D models: STL, OBJ | each other, or a shaded PNG preview |
 
+Audio-only conversions and compressions run three at a time (files over 150 MB run one at a time), so a batch of tracks finishes sooner. Video and other files still run one at a time.
+
 Things to know: e-book PDFs have no pictures and can't show non-Western alphabets (use EPUB or HTML for those);
 there is no MOBI or AZW3 *output* (Kindles accept EPUB); CAD pictures don't draw text labels; DWG reading is done by
 an open-source reader that can miss a few shape types; 3D formats are meshes, so STEP curves become small flat pieces.

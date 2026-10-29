@@ -41,6 +41,9 @@ const BOOK_TEXT = ['txt', 'md', 'markdown', 'html', 'htm'];
 
 const SAME = { jpeg: 'jpg', tif: 'tiff', oga: 'ogg' };
 
+// Audio formats a file can be converted to (listed in the Convert dropdown).
+export const AUDIO_TARGETS = TARGETS.audio;
+
 // Output formats offered for this file (never its own format).
 export function targetsFor(file) {
   const kind = kindOf(file);
