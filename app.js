@@ -308,46 +308,35 @@ function compressFile(file, row = makeRow(file)) {
 
 // ---------- convert ----------
 
-// Audio outputs take a title and an author, which are saved in the file.
-const AUDIO_TARGETS = ['mp3', 'wav', 'm4a', 'm4b', 'ogg', 'flac', 'opus'];
-
-function convertFile(file, row = makeRow(file), lastTo = '', typed = {}) {
+function convertFile(file, row = makeRow(file), lastTo = '', batch = { i: 0, n: 1 }) {
   const formats = targetsFor(file);
   if (!formats.length) {
     row.setStatus('No conversions for this file type yet. Images, videos, audio and PDFs can be converted.', 'err');
     return;
   }
 
-  row.setRedo(() => convertFile(file, row, select.value, { title: titleBox.value, author: authorBox.value }));
+  row.setRedo(() => convertFile(file, row, select.value, batch));
   const picker = row.li.querySelector('.picker');
   picker.hidden = false;
-  picker.innerHTML = '<span>Convert to</span> <select></select> <input type="text" class="book-title" placeholder="Book title (optional)" autocomplete="off" hidden> <input type="text" class="book-title book-author" placeholder="Author (optional)" autocomplete="off" hidden> <button type="button">Convert</button>';
+  picker.innerHTML = '<span>Convert to</span> <select></select> <button type="button">Convert</button>';
   const select = picker.querySelector('select');
   const button = picker.querySelector('button');
-  const titleBox = picker.querySelector('.book-title:not(.book-author)');
-  const authorBox = picker.querySelector('.book-author');
   for (const f of formats) select.add(new Option(FORMAT_LABELS[f], f));
-  titleBox.value = typed.title ?? '';
-  authorBox.value = typed.author ?? '';
-  // For M4B the title names the file and is the book's title and album; other audio keeps its file name.
-  const showTitle = () => {
-    const book = select.value === 'm4b';
-    titleBox.hidden = authorBox.hidden = !AUDIO_TARGETS.includes(select.value);
-    titleBox.placeholder = book ? 'Book title (optional)' : 'Title (optional)';
-    authorBox.placeholder = book ? 'Author (optional)' : 'Author or artist (optional)';
-  };
-  select.addEventListener('change', showTitle);
 
   const start = () => {
     const to = select.value;
-    button.disabled = select.disabled = titleBox.disabled = authorBox.disabled = true;
+    button.disabled = select.disabled = true;
     enqueue(row, async (progress) => {
       try {
-        const res = await convert(file, to, progress, { title: titleBox.value, author: authorBox.value });
+        // The batch's title and author (the boxes above the drop area) go into every audio file;
+        // each file's own name is its track title, numbered by its place in the batch.
+        const res = await convert(file, to, progress, {
+          title: $('#convert-title').value, author: $('#convert-author').value, track: batch.i + 1, tracks: batch.n,
+        });
         res.summary = `Done — converted to ${FORMAT_LABELS[to]}.`;
         return res;
       } finally {
-        button.disabled = select.disabled = titleBox.disabled = authorBox.disabled = false;
+        button.disabled = select.disabled = false;
         button.textContent = 'Convert again';
       }
     });
@@ -356,12 +345,7 @@ function convertFile(file, row = makeRow(file), lastTo = '', typed = {}) {
 
   // On a redo, use the format chosen now; if none is chosen, repeat the last one.
   const preferred = convertTo.value || lastTo;
-  if (AUDIO_TARGETS.includes(preferred) && formats.includes(preferred)) {
-    // Wait, so the title and author can be typed before converting.
-    select.value = preferred;
-    showTitle();
-    row.setStatus('Type a title and author (optional), then press Convert.');
-  } else if (preferred && formats.includes(preferred)) {
+  if (preferred && formats.includes(preferred)) {
     select.value = preferred;
     start();
   } else {
@@ -637,7 +621,7 @@ $('#clear-results').addEventListener('click', () => {
 
 const HANDLE = {
   compress: (items) => items.forEach(({ file }) => compressFile(file)),
-  convert: (items) => items.forEach(({ file }) => convertFile(file)),
+  convert: (items) => items.forEach(({ file }, i) => convertFile(file, undefined, '', { i, n: items.length })),
   zip: addToZip,
   tools: toolFiles,
 };

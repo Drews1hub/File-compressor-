@@ -153,6 +153,14 @@
             </optgroup>
           </select>
         </div>
+        <div class="option-grid convert-tags">
+          <label for="convert-title">Book title</label>
+          <input id="convert-title" type="text" placeholder="For all the audio files you convert (optional)" autocomplete="off">
+          <label for="convert-author">Author</label>
+          <input id="convert-author" type="text" placeholder="Author (optional)" autocomplete="off">
+          <span></span>
+          <p class="tool-hint">Saved in every audio file in the batch, so iTunes lists them as one book. Each file's own name becomes its track title, and the files are numbered in order. Type these before you drop the files, or press Redo afterwards.</p>
+        </div>
       </div>
       <label class="drop" data-mode="convert">
         <input type="file" multiple hidden>
