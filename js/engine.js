@@ -86,16 +86,19 @@ function parseInfo(text) {
   };
 }
 
-// Mounts `file` read-only inside ffmpeg (no copy into memory), probes it, and hands `fn` a job object.
+// Mounts the file (or files) read-only inside ffmpeg (no copy into memory), probes the first one, and hands `fn` a job object.
 export async function ffmpegJob(file, progress, fn) {
   cancelled = false;
   const ff = await getEngine(progress);
   const id = ++jobCount;
   const dir = `/in${id}`;
+  const files = Array.isArray(file) ? file : [file];
   await ff.createDir(dir);
-  await ff.mount('WORKERFS', { files: [file] }, dir);
-  const input = `${dir}/${file.name}`;
+  await ff.mount('WORKERFS', { files }, dir);
+  const inputs = files.map((f) => `${dir}/${f.name}`);
+  const input = inputs[0];
   const outputs = [];
+  const scratch = [];
 
   async function run(args, { duration = 0, label = 'Working' } = {}) {
     const logs = [];
@@ -130,8 +133,20 @@ export async function ffmpegJob(file, progress, fn) {
 
   const job = {
     input,
+    inputs,
     info: null,
     run,
+    // Probes any input by path, without the picture or sound details of the first file.
+    async probe(path) {
+      return parseInfo((await run(['-i', path])).logs.join('\n'));
+    },
+    // Writes a small text file (such as chapter metadata) next to the outputs and returns its path.
+    async writeText(text, outExt) {
+      const path = `/text${id}-${scratch.length}.${outExt}`;
+      scratch.push(path);
+      await ff.writeFile(path, text);
+      return path;
+    },
     // Runs ffmpeg writing to a new file with extension `outExt` (placed last in args) and returns it as a Blob.
     async encode(args, outExt, type, opts) {
       const out = `/out${id}-${outputs.length}.${outExt}`;
@@ -160,7 +175,7 @@ export async function ffmpegJob(file, progress, fn) {
     throw e;
   } finally {
     if (enginePromise) {
-      for (const out of outputs) await ff.deleteFile(out).catch(() => {});
+      for (const out of [...outputs, ...scratch]) await ff.deleteFile(out).catch(() => {});
       await ff.unmount(dir).catch(() => {});
       await ff.deleteDir(dir).catch(() => {});
     }
