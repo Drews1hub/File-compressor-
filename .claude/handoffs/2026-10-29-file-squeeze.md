@@ -1,31 +1,33 @@
 # Handoff: File Squeeze (2026-10-29)
 
-**Goal:** Free in-browser file compressor + converter (images, video, audio, PDFs, Office, text). Nothing is uploaded to a server. Default target 30 MB (Claude's upload limit).
+**Goal:** Free in-browser file compressor, converter and toolkit (photos, video, audio, PDFs, Office, text, archives). Nothing is uploaded. Default target 30 MB (Claude's upload limit). Features modelled on compress2go.com and tangerineformac.com, but with our own names, wording, layout and design (the user asked not to copy too closely).
 
-**Done** (branch `claude/wonderful-hypatia-9g13bo`, repo `Drews1hub/File-compressor-`):
-- Static site: `index.html`, `styles.css`, `app.js` (UI), modules in `js/` (`compress.js`, `convert.js`, `engine.js`, `images.js`, `pdf.js`, `util.js`).
-- Three tabs: **Compress** (goal = Fit a size in MB/KB with presets, Pick a strength Light/Balanced/Strong, or Shrink by %; More options: photo format auto/jpg/webp, photo max side, video max res, remove sound), **Convert** (global "Convert to" select, or per-file picker), **Zip** (ZIP or TAR.GZ, keeps dropped folder structure, `js/archive.js`).
-- **Tools** tab (`js/tools.js`, pdf-lib vendored and lazy-loaded): trim video/audio (exact cut by default, optional quick stream-copy cut), merge PDFs (reorderable list), split PDF (every page / ranges), photos → one PDF (fit/A4/Letter), rotate/flip/resize photos, open ZIP/TAR.GZ. Inspired by tangerineformac.com (Mac app): its file tools, not its radial-wheel UI.
-- "Download all as ZIP" + "Clear list" under the tabs; settings saved in localStorage.
-- Engine is shut down after every ffmpeg job (fresh engine next time, avoids memory build-up in long queues). Any ffmpeg run silent for 120 s fails with a message (watchdog).
-- Engine start (download + load) times out after 90 s with a readable error; Cancel releases the queue even if a job is stuck; rows show what they're doing ("Downloading the video engine…", "Waiting for X to finish…").
-- Every result row has Cancel (any job; non-ffmpeg jobs stop at their next progress update, ffmpeg jobs restart the engine) and ✕ to remove it from the list.
-- Feature set modelled on compress2go.com (features only; own names, wording, layout, colors — user asked not to copy so closely it could cause trouble).
-- Compress: images → JPEG (incl. HEIC via heic2any, TIFF via ffmpeg); video → H.264 MP4 at computed bitrate, ≤30 fps, auto-downscale, `superfast` preset, up to 3 retries; audio → MP3; PDF rasterize; Office media shrink; text split; other → zip.
-- Convert: image ↔ jpg/png/webp/gif/bmp/tiff/pdf; video ↔ mp4/webm/mov/mkv/avi/gif + audio extract; audio ↔ mp3/wav/m4a/ogg/flac/opus; PDF → jpg/png (zip) / txt. Stream copy when codecs fit.
-- ffmpeg.wasm 0.12 (single-thread, no COOP/COEP needed) vendored in `vendor/ffmpeg*`; 32 MB core lazy-downloaded with a progress bar; files mounted via WORKERFS (no memory copy). Cancel button for video/audio jobs.
-- All paths tested headless in Chromium (30 s 1080p clip → 10 MB in ~55 s; rotated iPhone HEVC .mov comes out upright).
+**Done** (branch `claude/wonderful-hypatia-9g13bo`, repo `Drews1hub/File-compressor-`, latest commit `5842644`):
+- Live at https://drews1hub.github.io/File-compressor-/ (GitHub Pages from this branch, `/ (root)`).
+- Tabs: **Compress**, **Convert**, **Tools**, **Zip**.
+  - Compress: goal = Fit a size (MB/KB, presets Claude 30 / Email 25 / Discord 10), Pick a strength (Light/Balanced/Strong), or Shrink by %. More options: photo format (auto keeps transparency via WebP), max photo size, max video resolution, remove sound.
+  - Convert: images, video, audio, PDF (see `js/convert.js`).
+  - Tools (`js/tools.js`): trim video/audio (exact cut default), merge PDFs, split PDF, photos → PDF, rotate/flip/resize photos, open ZIP/TAR.GZ.
+  - Zip: ZIP or TAR.GZ, keeps dropped folder structure (`js/archive.js`).
+- Every row: Cancel (any job) and ✕ (remove from list). "Download all as ZIP", "Clear list". Settings saved in localStorage.
+- Code: `app.js` (UI + queue), `js/compress.js`, `js/convert.js`, `js/tools.js`, `js/engine.js` (ffmpeg.wasm wrapper), `js/images.js`, `js/pdf.js`, `js/util.js`, `js/archive.js`. Vendored libs in `vendor/` (pdf.js, jsPDF, fflate, heic2any, ffmpeg.wasm 0.12.x, pdf-lib). License notes in `vendor/LICENSE-*`.
+- Engine safety: start (download + load) times out after 90 s; any ffmpeg run silent for 120 s fails with a message; engine is shut down after every job; Cancel releases the queue even if a job is stuck.
 
 **Decisions:**
-- Hosting via GitHub Pages from this branch, `/ (root)`. Live at https://drews1hub.github.io/File-compressor-/
-- User has no custom domain; suggested renaming repo to `drews1hub.github.io` for a shorter URL (not done).
-- No PR (user hasn't asked).
-- Network access was opened up by the user; compress2go.com and tangerineformac.com were both reviewed. Recommended order for next Tangerine-inspired work: spreadsheets & subtitles conversion (SheetJS, SRT↔VTT), then documents (DOCX→text/HTML/MD via mammoth), then our own quick format picker (not a copy of Tangerine's radial wheel).
+- No PR opened; user hasn't asked for one.
+- Jobs run one at a time on purpose (memory).
+- No custom domain; user is fine with the GitHub Pages URL.
+- Features copied only at the level of functionality; wording and visual design are our own.
 
-**Open / ideas:**
-- User should hard-refresh the live site and try real files (their 45.9 MB PDF, phone videos).
-- Video encoding is single-threaded: long/4K videos are slow. Multi-thread core would need COOP/COEP (e.g. coi-serviceworker) — not done.
+**Open:**
+- **Unresolved bug:** user reports that dropping many audio files at once (e.g. a folder of WMA tracks, 3.3 MB each) leaves the oldest row stuck, while a single track converts instantly. Could not reproduce here (batches of 14 files, 10-minute WMA, all WMA variants all work). Mitigations shipped in `5842644`; user has not yet confirmed. Next step: ask the user for the stuck row's exact status text and any red browser-console errors (F12 → Console), or for a sample file.
+- Earlier WMA file "Track 1.wma" was waiting behind the stuck one.
+- Safari not tested (only Chromium available here). User is on Chrome.
 - Folder drop into Zip tab not tested with a real folder (headless can't simulate it).
-- Possible next: spreadsheets/subtitles/docs conversions (above), PDF compression that keeps text selectable (pdf-lib is now vendored, could recompress embedded images).
+- PDF compression rasterizes pages, so text is no longer selectable. Possible improvement: keep text (pdf-lib is vendored).
+- Possible next from Tangerine: spreadsheets (XLSX↔CSV↔JSON), subtitles (SRT↔VTT), docs (DOCX→text/HTML/MD), then our own quick format picker (not a copy of Tangerine's radial wheel).
 
-**Where things live:** test files/scripts were in the session scratchpad (lost when container ends).
+**Where things live:**
+- Repo: `/home/user/File-compressor-` (clean at handoff).
+- Test scripts and sample files were in the session scratchpad (`/tmp/claude-0/-home-user-File-compressor-/1218ab51-81f4-40bc-b9e6-14c0a36866a3/scratchpad/test`); lost when the container ends.
+- Network access: compress2go.com, www.compress2go.com, tangerineformac.com, www.tangerineformac.com are allowed in the environment settings.
