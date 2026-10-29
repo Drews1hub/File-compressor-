@@ -1,29 +1,33 @@
-# Handoff: FileFit (2026-10-29, redesign session)
+# Handoff: FileFit converters (2026-10-29)
 
-**Goal:** Free in-browser file compressor, converter and toolkit (photos, video, audio, PDFs, Office, text, archives). Nothing is uploaded. Default target 30 MB (Claude's upload limit). Renamed from "File Squeeze" to **FileFit** this session.
+**Goal:** Free in-browser file compressor, converter and toolkit called FileFit. Nothing is uploaded; everything runs in the browser. Repo `Drews1hub/File-compressor-`, static site on GitHub Pages.
 
-**Done** (branch `claude/wonderful-hypatia-9g13bo`, repo `Drews1hub/File-compressor-`, latest code commit `8c3d54c`):
-- Live at https://drews1hub.github.io/File-compressor-/ (GitHub Pages from this branch, `/ (root)`). Static files, no build: `python3 -m http.server 8000`.
-- Tabs: Compress, Convert, Tools (trim, merge/split PDF, photos → PDF, photo edits, open ZIP/TAR.GZ), Zip. Cancel and remove on every row. Settings saved in localStorage.
-- Redesign (`styles.css`, `index.html`, commits `3e0119e`, `daead44`): Apple-style app (system SF font stack, `#f5f5f7` band, white rounded main tile, frosted top bar, segmented tabs and choices, 44px targets, one accent blue `#0071e3`, light + dark mode, phone layout) with DJI-style centered hero (eyebrow, "FileFit" wordmark, tagline "Shrink It Here. Keep It Yours", "Get Started ›" / "How It Works ›" links, spec strip 0 / 30 MB / 4) and dark `#272727` footer. Download links in rows are chevron text links.
-- Ordering (`app.js`, `3e0119e`): rows append to the bottom (upload order); each picked/dropped batch is sorted by name with numeric collation (Track 2 before Track 10); `orderedOutputs()` returns outputs in list order, numbered `01 - name` (checkbox `#number-files`, saved setting; unnumbered duplicates get " (2)").
-- Bulk bar (`8c3d54c`): **Save all files** (primary) writes each result into a folder via `showDirectoryPicker` in Chrome/Edge, else sequential downloads 500 ms apart; **Download all as ZIP** (`filefit-results.zip`); Clear list.
-- All of the above tested in headless Chromium (screenshots, order tests, folder-save mock, fallback downloads); no console errors.
+**Done** (branch `claude/great-wright-qym051`, head `eb917b4`):
+- Tab icon: `favicon.svg`, linked from `index.html` (`4459467`).
+- M4B audiobook output for audio and video (`c083d35`). Also accepted as input; trim keeps M4B.
+- Overall progress ring above the file list, green at 100%, engine download excluded (`ff13d1c`).
+- OCR (English): scanned PDF/photo → searchable PDF or TXT. `js/ocr.js`, vendored `vendor/tesseract/` (`586969d`).
+- E-books: EPUB/MOBI/AZW/AZW3/FB2 → EPUB/PDF/HTML/TXT; text/MD/HTML/text PDF → EPUB. `js/ebook.js`, `vendor/mobi-parser.mjs` (`e96d64a`).
+- CAD: DXF → SVG/PNG/PDF; DWG → DXF/SVG/PNG/PDF; STEP/IGES/BREP/STL/OBJ → STL/OBJ/PNG preview. `js/cad.js` (`0cb5963`, `53d4a17` adds DWG via LibreDWG).
+- Audio speed: audio-only jobs under 150 MB run 3 at a time; each job has its own ffmpeg engine; cancel stops only its row. 6×1-min WAV → M4B went ~20 s → ~7 s (`eb917b4`).
+- Live: `claude/wonderful-hypatia-9g13bo` (GitHub Pages source) was fast-forwarded to `53d4a17`. Live site has OCR, e-books, CAD, DWG and the progress ring. **Not** live: `eb917b4` (parallel audio).
+- All conversions tested in headless Chromium with real sample files (Gutenberg EPUB/MOBI/KF8, occt test STEP, dxf/dwg samples). Mixed UI batch passes; cancel and video regression checks pass.
 
 **Decisions:**
-- User prefers Apple's font over DJI's Open Sans / uppercase wordmark. Keep system font stack; no outside fonts or CDNs (README promises none).
-- Name is FileFit. localStorage key stays `file-squeeze-settings` on purpose so saved settings carry over.
-- Repo not renamed (Pages URL stays `/File-compressor-/`); renaming the repo would change the URL. User hasn't asked.
-- No PR opened; user hasn't asked. Jobs run one at a time on purpose (memory).
-- Features copied from compress2go / Tangerine only at the functionality level; wording and design are our own.
+- Keep system font stack, no outside CDNs. Repo not renamed.
+- Ship the GPL-3.0 LibreDWG part (`vendor/libredwg/`, license in `vendor/LICENSE-libredwg`). Removable by reverting `53d4a17`'s DWG bits.
+- No PR opened; user has not asked for one. Live-branch updates were approved for the feature set up to `53d4a17` only.
+- Parallel audio only for audio-only jobs; video/other stay serial for memory.
+- Browser AAC (WebCodecs) rejected for now: headless Chromium here can't encode AAC, so it can't be verified.
 
 **Open:**
-- Offered: drag-to-reorder rows if name sorting doesn't match the order the user wants. Not built.
-- Unresolved bug from earlier session: dropping many WMA audio files at once left the oldest row stuck (couldn't reproduce; mitigations in `5842644`). Next step: ask user for the stuck row's status text and console errors (F12 → Console) or a sample file.
-- Safari not tested (only Chromium here). Folder save only verified with a mocked `showDirectoryPicker`; real Chrome folder permission prompt untested.
-- Ideas: keep PDF text selectable when compressing (pdf-lib is vendored); XLSX↔CSV↔JSON, SRT↔VTT, DOCX→text/MD.
+- Ask user to say "push it live" to publish `eb917b4` to `claude/wonderful-hypatia-9g13bo`.
+- Known gaps: no MOBI/AZW3 output; no DXF→DWG; e-book PDF is text-only; CAD pictures omit text labels; DWG reader can miss some shapes; OCR is English only; DRM Kindle books refused.
+- Not tested: real e-reader/Kindle opening of outputs; Safari; real Chrome folder-save prompt.
+- Untested: EPUB/OCR with very large files; parallel jobs on machines with fewer cores.
 
 **Where things live:**
-- Repo: `/home/user/File-compressor-`. Code: `app.js` (UI, queue, ordering, bulk save), `js/compress.js`, `js/convert.js`, `js/tools.js`, `js/engine.js` (ffmpeg.wasm), `js/images.js`, `js/pdf.js`, `js/util.js`, `js/archive.js`; vendored libs in `vendor/`.
-- Style skills used: `anthropic-skills:apple`, `anthropic-skills:dji`.
-- Test scripts were in the session scratchpad (lost when the container ends).
+- Code: `app.js` (queue, rows, cancel), `js/engine.js` (ffmpeg per job), `js/convert.js` (targets per type), `js/ocr.js`, `js/ebook.js`, `js/cad.js`, `js/tools.js`, `js/compress.js`.
+- Vendored libs: `vendor/` (license texts `vendor/LICENSE-*`); README has the full list.
+- Test scripts and samples: session scratchpad only (lost when container ends): `/tmp/claude-0/-home-user-File-compressor-/9a7911cf-d1ba-55f8-a608-33da232e38b3/scratchpad/`.
+- Local test server: `python3 -m http.server 8765` in repo root.
