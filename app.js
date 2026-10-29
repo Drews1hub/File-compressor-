@@ -15,7 +15,7 @@ const convertTo = $('#convert-to');
 
 // ---------- settings (remembered per browser) ----------
 
-const SETTINGS_KEY = 'file-squeeze-settings';
+const SETTINGS_KEY = 'fitfile-settings';
 const SETTING_FIELDS = ['#target', '#unit', '#percent', '#image-format', '#max-side', '#max-res', '#mute', '#convert-to',
   '#archive-type', '#tool', '#pdf-page'];
 const checked = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
@@ -405,7 +405,7 @@ $('#download-all').addEventListener('click', async () => {
     const blob = await makeZip(allOutputs.map(({ name, blob: b }) => ({ path: name, blob: b })));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'file-squeeze-results.zip';
+    a.download = 'fitfile-results.zip';
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
   } finally {

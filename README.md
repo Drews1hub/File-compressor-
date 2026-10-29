@@ -1,4 +1,4 @@
-# File Squeeze
+# Fitfile
 
 A free file compressor and converter that runs entirely in your web browser. Your files are never uploaded to a server.
 
