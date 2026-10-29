@@ -113,7 +113,9 @@ export function joinAudiobook(files, progress, { title = '' } = {}) {
   const name = title.trim();
   const book = {
     file: `${name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120) || 'audiobook'}.m4b`,
-    meta: name ? ['-metadata', `title=${name}`, '-metadata', `album=${name}`] : [],
+    // Flagged as an audiobook (media type 2, M4B file type) so iTunes lists it under Audiobooks, with chapter navigation.
+    meta: [...(name ? ['-metadata', `title=${name}`, '-metadata', `album=${name}`] : []),
+      '-metadata', 'media_type=2', '-metadata', 'genre=Audiobook', '-brand', 'M4B '],
   };
   return ffmpegJob(files, progress, async (job) => {
     const n = files.length;
