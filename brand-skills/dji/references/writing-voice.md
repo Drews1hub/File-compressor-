@@ -64,7 +64,7 @@ Reuse this block for any product, feature, or launch.
 
 ## 5. CTAs and UI labels
 
-- Primary pair: **Learn More** and **Buy Now**. Title Case, 2 words.
+- Primary pair: **Learn More** and **Buy Now**. Title Case, 2 words. On the site they are written as links followed by a chevron ("Learn More ›"), not as filled buttons.
 - Other labels: Add to Cart, Where to Buy, Help Me Choose, Compare, Download App, Subscribe, Support.
 - One verb, no punctuation, no exclamation marks.
 - Section heads for utility links are plain nouns: "Where to buy", "Support", "Fly Safe".

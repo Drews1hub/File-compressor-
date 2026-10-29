@@ -2,7 +2,7 @@
 
 ## Contents
 1. Sources and confidence
-2. Surfaces and rhythm
+2. Page anatomy
 3. Color
 4. Typography
 5. Shape and elevation
@@ -14,113 +14,121 @@
 
 ## 1. Sources and confidence
 
-Rebuilt on 2026-10-29 from the live www.dji.com (desktop 1440px and the mobile site at /mobile, 390px). Each value below is marked by how it was confirmed:
+Measured from the live www.dji.com on 2026-10-29, with its stylesheets loaded: desktop at 1440px and the mobile site (/mobile) at 390px. Values are computed styles plus DJI's own CSS variables. They are what the site ships, not an official DJI spec, and they change with each campaign.
 
-- **Verified live**: page structure and section order, nav categories, all copy, the Open Sans webfont (the page loads `OpenSans-Regular.woff2`), and the two colors set inline in the HTML: `#eeeeed` (product-info card) and `#3b63a9` (category cards).
-- **Not re-verified**: DJI's stylesheets are served from `www-cdn.djiits.com`, which this capture could not reach, so computed sizes, the Sky CTA blue, radii, and spacing come from the earlier third-party extraction of the homepage. Treat them as approximations.
-- Not captured at all: hover states, forms and error states, modals, cart and checkout, and the DJI Fly / DJI Store app interfaces. For those, extend the same restraint rather than inventing a new look, and say so.
-- A correction from the earlier version: it listed "hyperlink blue `#0000ee`" as a brand color. That is the browser's default link color, which shows up when DJI's CSS fails to load. It is not part of the design; don't use it.
+- Not captured: hover states, forms and error states, product subpages, cart and checkout, and the DJI Fly / DJI Store app interfaces. For those, extend the same restraint rather than inventing a new look, and say so.
+- Corrections to the earlier version of this skill, which came from a third-party extraction:
+  - CTAs are not Sky-blue pills. On the homepage they are white outline pills on hero photos and chevron text links everywhere else. Sky blue appears only on the nav "Store" button and the cookie banner.
+  - Cards have square corners, not 4px.
+  - `#0000ee` was the browser's default link color showing through, not a brand color.
+  - Product names are uppercase wordmark images, not Open Sans text.
+  - `#3b63a9` and `#eeeeed` are image placeholder colors (see section 3), not surface colors.
 
-## 2. Surfaces and rhythm
+## 2. Page anatomy
 
-Homepage order (verified live, same on desktop and mobile):
+Homepage order (same on desktop and mobile):
 
-1. **Hero carousel** (`homepage-big-banner`): full-width slides, one product each, with a strip of product-name tabs under it ("DJI Air 3S", "DJI Mavic 3 Pro", "Osmo Action 6", "Osmo Pocket 3", "DJI RS 5", "DJI Matrice 400", "DJI AGRAS T100", "DJI FlyCart 100"). Each slide is a full-bleed photo or product render with descriptor, product name, tagline and CTAs over it. Consumer, then pro, then enterprise and agriculture, all in one carousel.
-2. **Product grid** (`homepage-products-banner`): three product cards (Osmo 360, Flip, Osmo Mobile 8) plus a fourth utility card on `#eeeeed`: "Product Info / Compare Camera Drones / See product overviews and comparisons here / Help Me Choose / Buy Now".
-3. **"Shot on" gallery** (`homepage-skypixel-module`): six sample shots, each labeled "Shot on" + product name + Learn More (Buy Now on some). Sourced from SkyPixel, DJI's creator community.
-4. **Stories** (`homepage-stories-module`): heading "Standing at the Forefront of Innovation", one mission sentence, then two editorial cards, each with a small category label ("Industry Insight Report", "Engineering, Science & Technology"), a headline, and Learn More.
-5. **Category cards** (`homepage-child-module`): heading "Explore DJI Products in Different Fields", three cards filled with brand blue `#3b63a9` (Video Production, Enterprise, Agriculture), each with a one-line descriptor and Learn More.
-6. **Service row** (`homepage-service-module`): Where to buy, Support, Fly Safe, each with Learn More.
-7. Newsletter sign-up ("Get the latest news from DJI") and a dense multi-column footer.
+1. **Promo ribbon**: one line on white, small, with a blue text link ("Download the DJI Store app and be the first to experience... Download the App >") and a close X.
+2. **Nav** (64px): over the hero it is transparent with white text. Once you scroll it becomes sticky and white with dark text.
+3. **Hero carousel**: full-bleed photo slides, 800px tall on desktop, 576px on mobile. Content is centered at the top with 112px of padding: descriptor eyebrow, product wordmark, tagline, then white outline pill CTAs. The product photo fills the slide behind. A list of product names sits on the slide to switch between products (active name bold, the rest light).
+4. **Product grid**: 2x2 on desktop (1-up on mobile), 16px gaps, 16px side padding, square-cornered tiles about 696 x 576px. Each tile is a soft grey studio photo with the same stack centered at the top: grey eyebrow, black wordmark, tagline, text-link CTAs. The fourth tile is the "Product Info / Compare Camera Drones" utility tile.
+5. **"Shot on" carousel**: 720px tall, a centered photo with neighboring slides peeking in on each side, prev/next arrows, and dot pagination. White overlay text: "Shot on" over the product name, both 40px/500, then "Learn More >".
+6. **Stories**: 96px above. Centered 40px/600 heading, an 18px grey mission line, then two photo cards with eyebrow, 32px/600 headline, and "Learn More >".
+7. **Category cards**: 64px above. Centered 40px/500 heading ("Explore DJI Products in Different Fields"), then three portrait photo cards (about 389 x 512px) with centered white text over a blue-sky photo: 32px/500 field name, 16px descriptor, "Learn More >".
+8. **Service row**: a pale `#f7f9fa` band with 64px padding. Three columns, each with a 72px line icon, a 24px/500 title (Where to buy, Support, Fly Safe), and "Learn More >".
+9. **Footer**: `#272727`. An app promo comes first ("Only in the DJI Store App", one line, a translucent "Download App" pill). Then six link columns with 12px/500 white headings and 12px links at 65% white, a newsletter field, the wordmark and social icons, and a legal row.
 
-Product slides and cards are photography-led: dark slides for flagship hardware, light ones elsewhere, so the flip between dark and light still acts as the divider. Sections are separated by space and surface change, not rules or shadows.
+Sections are separated by space and by photography, not by rules, shadows, or flat color bands.
 
 ## 3. Color
 
-| Role                 | Value     | Confidence | Use |
-|----------------------|-----------|------------|-----|
-| Sky CTA (primary)    | `#0070d5` | earlier extraction | Pill buttons: Buy Now, Learn More. Never body text or hairlines. |
-| DJI Brand Blue       | `#3b63a9` | verified live | Full-card fill for category cards (Video Production, Enterprise, Agriculture) with white text; also small badges and chips. Never a button. |
-| Ink / black          | `#000000` | earlier extraction | Dark slide surface and body text on white. |
-| Near-black soft      | `#272727` | earlier extraction | Video frames and embeds where pure black feels inert. |
-| Body strong          | `#303233` | earlier extraction | Secondary body text, stroke. |
-| Body mute            | `#6c7073` | earlier extraction | Captions, product subtitles, fine print, input stroke. |
-| Soft grey wash       | `#eeeeed` | verified live | Utility and product cards (the "Product Info / Help Me Choose" card). Earlier extraction measured `#ededed`; use `#eeeeed`. |
-| White                | `#ffffff` | earlier extraction | Light surfaces, text on dark and on brand blue. |
+DJI's UI color system is near-black ink at three alpha levels on white, plus one blue for buying. Everything else is photography.
 
-Rules: two blues with two separate jobs. Sky blue is the action color; brand blue is a surface color for category cards. Don't merge them into one variable. Hierarchy never comes from tinting text grey except at the explicit caption tier. No gradient tokens.
+| Role                  | Value                    | Use |
+|-----------------------|--------------------------|-----|
+| Ink, strong           | `rgba(0,0,0,0.85)`       | Headings, taglines, text-link CTAs, nav links (CSS variable `--text-blod`) |
+| Ink, default          | `rgba(0,0,0,0.65)`       | Body and description lines, dropdown links (`--text-default`) |
+| Ink, quiet            | `rgba(0,0,0,0.45)`       | Eyebrow descriptors above product names |
+| White, strong / quiet | `#ffffff` / `rgba(255,255,255,0.65)` | Taglines and CTAs on photos / eyebrows on photos and footer links |
+| Sky blue (buy)        | `#0070d5`                | The nav "Store" pill and primary buttons in dialogs. Nothing else. |
+| Link blue             | `#1890ff`                | Inline text links in small copy (ribbon, sign-up text) |
+| Service band          | `#f7f9fa` (mobile `#f0f1f2`) | The service row, and the stories block on mobile |
+| Footer                | `#272727`                | Footer background |
+| Translucent fill      | `rgba(255,255,255,0.08)` / `rgba(0,0,0,0.04)` | Pill on the dark footer / secondary button fill on light |
+| Hairline              | `rgba(0,0,0,0.15)`       | Borders on inputs and dialogs |
+
+**Image placeholder colors.** The homepage sets a background color on each image slot, matched to its photo: `#ededed` behind hero slides, `#eeeeed` behind the compare tile, `#3b63a9` behind the blue-sky category photos. They show only while the image loads. If you have no photography, a flat tile in a color pulled from the intended photo is a fair stand-in, but say it is a placeholder. Don't present these colors as the brand palette.
+
+No gradients, glows, or tinted section bands. Hierarchy comes from size and weight, and from the three ink alphas.
 
 ## 4. Typography
 
-**Family:** Open Sans at every tier (verified: dji.com self-hosts the Open Sans webfont), with a localized fallback stack:
+**Family:** Open Sans for all UI text, weights 300 to 700 (verified: dji.com self-hosts the Open Sans webfont), with a localized fallback stack:
 `"Open Sans", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", "Hiragino Sans GB", "WenQuanYi Micro Hei", Arial, sans-serif`.
-Open Sans is on Google Fonts. If substituting, Inter at weight 500 with about `-0.2px` tracking on body sizes is close; Source Sans is the nearer humanist cousin.
+Open Sans is on Google Fonts.
 
-| Role         | Size | Weight | Line height | Tracking | Use |
-|--------------|------|--------|-------------|----------|-----|
-| display-xl   | 40px | 500    | 1.1         | 0        | Hero product name on black ("Osmo Pocket 4") |
-| display-lg   | 32px | 500    | 1.125       | 0        | Section heads, editorial headline |
-| display-md   | 32px | 600    | 1.125       | -0.96px  | Rare emphasis head |
-| heading-md   | 24px | 500    | 1.5         | 0        | Sub-section head |
-| heading-sm   | 20px | 500    | 1.2         | 0        | Product card title |
-| body-lg      | 16px | 400    | 1.5         | -0.32px  | Paragraph copy |
-| body-md      | 14px | 400    | 1.43        | -0.28px  | Card metadata, nav labels, button label |
-| body-sm      | 12px | 400    | 2.0         | 0        | Legal, footer links |
-| caption      | 12px | 500    | 2.0         | 0        | Promo strip, micro-heads |
+**Product names are not set in Open Sans.** Each one is an image of an uppercase wordmark in a geometric sans (32px tall on the homepage: OSMO ACTION 6, DJI FLIP, OSMO 360), and an invisible heading carries the text for screen readers. To echo this without DJI's artwork, set the product name in uppercase in a geometric sans at about 32 to 40px, weight 500. Never reproduce DJI's actual wordmarks.
 
-Quirk worth keeping: DJI tightens *body* tracking slightly and leaves display at 0, the reverse of most type systems. Weight 500 is the display tier; 600 is rare. On wide screens you may scale the hero up (the whole system favors a few large words), but keep weight 500.
+| Role                 | Desktop (size/line, weight) | Mobile      | Color | Use |
+|----------------------|-----------------------------|-------------|-------|-----|
+| Section heading      | 40/44, 500-600              | 28/32       | ink .85 | "Standing at the Forefront of Innovation" (600), "Explore DJI Products in Different Fields" (500) |
+| Overlay title        | 40/44, 500                  | 28/32, 600  | white | "Shot on" / "DJI RS 5"; utility tile "Compare Camera Drones" |
+| Card headline        | 32/36-40, 500-600           |             | ink .85 or white | Category name (500), story headline (600) |
+| Service title        | 24/36, 500                  |             | ink .85 | "Where to buy" |
+| Tagline              | 20/24, 500                  | 18/24       | ink .85 or white | "Chase the View" under the wordmark |
+| Lead                 | 18/28, 400                  |             | ink .65 | Section intro line |
+| Eyebrow / descriptor | 16/20, 400                  | 14/20       | ink .45 or white .65 | "Dual-Camera Drone for Travel Photography" |
+| Body / text CTA      | 16/24, 400                  | 16/24       | ink .85 | "Learn More >" |
+| Pill CTA / nav       | 14/20, 400                  | 14/20       | white / ink .85 | Hero pills; nav links at -0.28px tracking |
+| Footer               | 12/24 headings (500), 12/16 links | 12    | white / white .65 | |
+
+Headings and taglines use normal tracking. Small UI text (14 to 16px in the nav, buttons, and footer) is tightened by about -0.02em.
 
 ## 5. Shape and elevation
 
-**Radius is polarized:**
-- `0` for full-bleed tiles, hero canvas, footer.
-- `4px` for product cards, inputs, editorial card. Structural surfaces.
-- `pill` (effectively a full pill, `9999px` works) for every primary and secondary button.
-- `50%` for circular icon controls and avatars.
-- A rare `60px` large pill appears on promo strips.
-- Nothing between 4px and the pill. A 12px or 24px card corner breaks the system.
-
-**Elevation:** effectively none. No card shadows. Elevation is surface contrast (black tile vs white tile) and the grey wash under product photos so silver drone bodies read. Hairlines are `1px` in `#6c7073` or `#eeeeed` and used sparingly.
+- **Square corners** on hero slides, product tiles, story cards, category cards, and images.
+- **Full pills** for buttons: hero CTAs (`border-radius: 64px`), the Store button, and the footer "Download App" pill.
+- **4px** only on dialog and cookie-banner buttons, and on inputs.
+- **No shadows** on content. Depth comes from photography.
 
 ## 6. Spacing and layout
 
-- 8px base unit. Scale: 4, 8, 12, 16, 24, 48, 112 (section).
-- Section top padding 112px; horizontal tile padding 48px; card padding 24px; editorial card padding 48px.
-- Nav bar: 64px tall, white, `0 48px` padding, no border or shadow.
-- Product grid: 2-up on desktop, 1-up on mobile. Hero full bleed with product centered in roughly a 1392px content frame.
-- Whitespace: nothing crowds the aircraft. At least 24px of air around a product render in a card, 16px minimum to nearest content.
-- The footer is the one place density is allowed (multi-column link lists, 12px text).
+- 8px base. The values that recur: 16px gaps and side gutters on the product grid; 64px between later sections; 96px above stories; 112px of padding from the top of the hero to its content; 64px vertical padding in the service band.
+- Content width about 1200px for stories and category cards; the product grid and hero run edge to edge (inside a 16px gutter).
+- Content in hero, tile, and card blocks is centered and stacked: eyebrow, wordmark, tagline, CTAs. Text stays at the top and the product photo fills the rest.
+- Mobile: everything goes 1-up with 8px between sections, the hero shrinks to 576px, headings drop to 28px, and taglines to 18px.
 
 ## 7. Components
 
-- **Primary button**: bg `#0070d5`, white text, 14px/400, full pill, height 32px, padding `8px 16px` (extra left padding, about 34px, when a leading icon is present). Press state: a slight `scale(0.97)`, no color change.
-- **Secondary button**: white fill, `#0070d5` text, 1px `#0070d5` border, full pill. Used beside the primary ("Learn More" next to "Buy Now").
-- **Accent chip**: bg `#3b63a9`, white text, pill, `5px 16px`. Tertiary only.
-- **Text link**: inline anchor in Sky blue or inherited text color. (Not `#0000ee`; see section 1.)
-- **Top nav** (categories verified live): wordmark left, then Camera Drones, Handheld, Power, Specialized (Enterprise, Agriculture, DJI Delivery), Explore (Who We Are, SkyPixel, DJI Forum, Media Center, DJI Trust Center, DJI Blog, Careers), Support, Where to Buy; on the right search, account, region ("United States") and Store with a cart. 14 to 16px text.
-- **Search input**: 32px tall, 4px radius, 1px `#6c7073` stroke, `4px 0 4px 12px` padding.
-- **Hero slide**: descriptor (14px) then product name (40px/500) then tagline, then the CTA pair (Learn More + Buy Now; enterprise products get Learn More only), over a full-bleed product photo. Slides rotate, with a row of product-name tabs underneath to jump between them.
-- **Product card**: descriptor, product photo, name, tagline, then Learn More / Buy Now. 4px radius, 24px padding, title 20px/500, meta 14px in `#6c7073`.
-- **Utility card**: `#eeeeed` bg, small label ("Product Info"), title ("Compare Camera Drones"), one line, then "Help Me Choose" and "Buy Now". Sits as the last cell of the product grid.
-- **Category card**: `#3b63a9` fill, white text, field name ("Enterprise"), one-line descriptor ("Drone Solutions for a New Generation of Work"), Learn More. Three in a row.
-- **Service row**: three short items (Where to buy, Support, Fly Safe), each with a Learn More link.
-- **Stories block**: section heading plus one mission sentence, then editorial cards with a small category label, a headline, and Learn More. Use full-bleed landscape photography with white text overlaid.
-- **"Shot on" gallery**: sample footage or photos with a small "Shot on" label above the product name and a Learn More link. A strong trust device for camera products.
-- **Spec strip** (extrapolated from the brand's spec-forward style): 3 or 4 big numbers ("1″ CMOS", "8K", "46 min") with 12 to 14px captions, on a black or white tile. Mark this as an extension, not extracted.
+- **Nav**: 64px tall. Wordmark at left, then Camera Drones, Handheld, Power, Specialized (Enterprise, Agriculture, DJI Delivery), Explore (Who We Are, SkyPixel, DJI Forum, Media Center, DJI Trust Center, DJI Blog, Careers), Support, Where to Buy. Search, account, a region pill ("United States") and the blue **Store** pill sit at right. Links are 14px with -0.28px tracking. Dropdown items are 14/20 at ink .65 with `0 16px` padding and 40px rows.
+- **Store pill** (the only Sky-blue button): `#0070d5`, white 14px text, 32px tall, `8px 16px` padding (34px on the left for a bag icon), full pill.
+- **Hero outline pill**: transparent, 1px white border, `border-radius: 64px`, `5px 16px` padding, 32px tall, 14/20 white text, then a small right chevron (›). Pairs: "Learn More ›" + "Buy Now ›". Agras uses per-model pills ("DJI AGRAS T100 ›").
+- **Text-link CTA**: no box. 16/24 text at ink .85 (or white on photos) followed by a chevron (›). Used in product tiles, stories, category cards, and the service row. Pairs sit side by side with about 16px between them.
+- **Product tile**: square-cornered photo tile. Grey eyebrow, uppercase wordmark, tagline, then text-link CTAs, centered in the top third.
+- **Utility tile**: same shell. "Product Info" eyebrow, a 40px title, a 20px line, then "Help Me Choose ›" and "Buy Now ›".
+- **"Shot on" slide**: a full-height photo with "Shot on" over the product name (40px white, 500) and "Learn More ›". Neighboring slides peek in from the sides, with arrows and dots. This is a strong trust device for camera products.
+- **Story card**: photo card, eyebrow, 32/40 600 headline, "Learn More ›", with text at the top over a pale part of the photo.
+- **Category card**: portrait photo with centered white text: 32/36 500 name, 16/24 descriptor, "Learn More ›".
+- **Service item**: 72px outline icon, 24/36 500 title, "Learn More ›".
+- **Footer pill**: `rgba(255,255,255,0.08)` fill, white 16px text, `10px 16px` padding, 40px tall, full pill.
+- **Spec strip** (an extension, not on the homepage): 3 or 4 big numbers ("1″ CMOS", "8K", "46 min") with 12 to 14px captions. Mark it as an extension.
 
 ## 8. Photography
 
-- Hero: full-bleed product render on pure black, dead center, rectangular (no rounding).
-- Cards: 1:1 or 4:3 silver or matte-black hardware on the `#eeeeed` wash, 4px corners.
-- Editorial: wide 21:9 landscape with a human operator and aircraft in scale against nature (alpine water, ridgelines, coast). Natural light, real places, sense of altitude and freedom.
-- When no real image is available, use a flat labeled placeholder block in the right ratio rather than a gradient or illustration. Say it is a placeholder.
+Photography does almost all the visual work on dji.com.
+
+- **Hero**: cinematic, full-bleed, with the product shown in a dramatic setting (ice and spray behind an action camera, a drone over a landscape). Keep the top third calm enough for white text.
+- **Product tiles**: soft grey studio scenes, with the product floating or resting on a pale surface. Light from above, with gentle shadows inside the photo. Keep the top third empty for text.
+- **Category and story cards**: blue sky and landscape, with the aircraft or gimbal in use in the lower half.
+- **"Shot on"**: real footage stills from creators, with people in frame.
+- If there's no real image, use a flat placeholder in the right aspect ratio and a color sampled from the intended photo, and label it as a placeholder. Don't use a gradient or an illustration.
 
 ## 9. Motion
 
-Restraint, matching the flat look: subtle fade or slide on tile entry, video backgrounds in heroes, a small scale on button press. Keep durations about 200 to 500ms with `ease-out`. Wrap non-essential motion in `prefers-reduced-motion: no-preference`. Auto-playing video should be muted, looped, with a static poster.
+Carousels drive the page: the hero auto-advances, and the "Shot on" slides peek and swipe. Beyond that, keep motion restrained: subtle fades, about 200 to 500ms, `ease-out`. Autoplaying carousels need visible controls, and their autoplay goes inside `prefers-reduced-motion: no-preference`. Video should be muted, looped, and have a poster frame.
 
 ## 10. Do and don't
 
-Do: alternate dark and light surfaces; one Sky-blue pill per action; brand blue only as a card surface; Open Sans 500 for display; 4px cards; photography as the mood; real specs; 112px section air.
+Do: let photography carry every tile; center a short stack (eyebrow, wordmark, tagline, CTAs) at the top of each tile; use chevron text links as the default CTA and white outline pills on hero photos; keep blue for the single buying button; use square tiles with 16px gaps; use ink at .85 / .65 / .45; set product names as uppercase wordmarks.
 
-Don't: gradients or glow behind products; card shadows; radii between 4px and a pill; blue headlines or blue backgrounds for whole sections (brand-blue cards, yes; brand-blue page bands, no); `#0000ee` links; a second typeface; merging the two blues; grey-tinted body text for "softness"; busy icon grids; decorative illustrations in place of product imagery.
+Don't: blue pill buttons on every tile; rounded cards; drop shadows; gradients or glows; flat colored bands as section dividers; placeholder colors passed off as a palette; `#0000ee` links; a second text typeface for UI copy; reproducing DJI's actual wordmark artwork or photography.
