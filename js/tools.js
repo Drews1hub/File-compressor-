@@ -66,7 +66,12 @@ export function trimMedia(file, { start, end, exact }, progress) {
 
 // ---------- audiobook join ----------
 
-// Joins the tracks, in the order given, into one continuous M4B with no chapter breaks between files.
+// Chapter titles in FFMETADATA: these characters must be escaped with a backslash.
+const escapeMeta = (s) => s.replace(/[=;#\\\n]/g, '\\$&');
+
+// Joins the tracks, in the order given, into one M4B. With several files each one becomes a chapter,
+// so the book is a single file that can still be navigated by disc and track.
+// A single file keeps whatever chapters it already has.
 export function joinAudiobook(files, progress) {
   return ffmpegJob(files, progress, async (job) => {
     const n = files.length;
@@ -79,18 +84,35 @@ export function joinAudiobook(files, progress) {
     }
     const total = durations.reduce((s, d) => s + d, 0);
 
+    // Chapter times in milliseconds, so each file starts where the previous one ended.
+    const chapterArgs = [];
+    const extraInputs = [];
+    if (n > 1) {
+      let start = 0;
+      const chapters = files.map((file, i) => {
+        const end = start + Math.round(durations[i] * 1000);
+        const chapter = `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${start}\nEND=${end}\ntitle=${escapeMeta(baseName(file.name))}\n`;
+        start = end;
+        return chapter;
+      });
+      const meta = await job.writeText(`;FFMETADATA1\n${chapters.join('')}`, 'txt');
+      extraInputs.push('-i', meta);
+      chapterArgs.push('-map_chapters', String(n));
+    }
+
     // Every track is resampled to one format, so files with different sample rates or mono/stereo can be joined.
-    // -map_chapters -1 drops any chapters the source files already had, so the book has no breaks between discs.
     const inputs = job.inputs.flatMap((path) => ['-i', path]);
     const chains = job.inputs.map((_, i) =>
       `[${i}:a:0]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a${i}]`);
     const concat = `${job.inputs.map((_, i) => `[a${i}]`).join('')}concat=n=${n}:v=0:a=1[out]`;
-    const blob = await job.encode([...inputs, '-filter_complex', [...chains, concat].join(';'),
-      '-map', '[out]', '-map_chapters', '-1', '-c:a', 'aac', '-b:a', '128k', '-f', 'ipod'],
+    const blob = await job.encode([...inputs, ...extraInputs, '-filter_complex', [...chains, concat].join(';'),
+      '-map', '[out]', ...chapterArgs, '-c:a', 'aac', '-b:a', '128k', '-f', 'ipod'],
     'm4b', 'audio/mp4', { duration: total, label: 'Joining' });
     return {
       outputs: [{ blob, name: 'audiobook.m4b' }],
-      summary: `Done — ${n} file${n === 1 ? '' : 's'} joined into one continuous audiobook, ${fmtDuration(total)} long.`,
+      summary: n > 1
+        ? `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, one chapter per file.`
+        : `Done — one audiobook, ${fmtDuration(total)} long.`,
       note: 'Re-encoded to AAC 128k so the tracks join cleanly.',
     };
   });
