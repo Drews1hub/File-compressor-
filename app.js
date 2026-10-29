@@ -296,21 +296,25 @@ function convertFile(file) {
 
   const picker = row.li.querySelector('.picker');
   picker.hidden = false;
-  picker.innerHTML = '<span>Convert to</span> <select></select> <button type="button">Convert</button>';
+  picker.innerHTML = '<span>Convert to</span> <select></select> <input type="text" class="book-title" placeholder="Book title (optional)" autocomplete="off" hidden> <button type="button">Convert</button>';
   const select = picker.querySelector('select');
   const button = picker.querySelector('button');
+  const titleBox = picker.querySelector('.book-title');
   for (const f of formats) select.add(new Option(FORMAT_LABELS[f], f));
+  // Audiobooks take a title, which names the file and is stored in it.
+  const showTitle = () => { titleBox.hidden = select.value !== 'm4b'; };
+  select.addEventListener('change', showTitle);
 
   const start = () => {
     const to = select.value;
-    button.disabled = select.disabled = true;
+    button.disabled = select.disabled = titleBox.disabled = true;
     enqueue(row, async (progress) => {
       try {
-        const res = await convert(file, to, progress);
+        const res = await convert(file, to, progress, { title: titleBox.value });
         res.summary = `Done — converted to ${FORMAT_LABELS[to]}.`;
         return res;
       } finally {
-        button.disabled = select.disabled = false;
+        button.disabled = select.disabled = titleBox.disabled = false;
         button.textContent = 'Convert again';
       }
     });
@@ -318,7 +322,12 @@ function convertFile(file) {
   button.addEventListener('click', start);
 
   const preferred = convertTo.value;
-  if (preferred && formats.includes(preferred)) {
+  if (preferred === 'm4b' && formats.includes('m4b')) {
+    // Wait, so the book title can be typed before converting.
+    select.value = 'm4b';
+    showTitle();
+    row.setStatus('Type the book title (optional), then press Convert.');
+  } else if (preferred && formats.includes(preferred)) {
     select.value = preferred;
     start();
   } else {
@@ -473,8 +482,9 @@ $('#tool-make').addEventListener('click', () => {
   const total = files.reduce((s, f) => s + f.size, 0);
   if (tool === 'join-audio') {
     const title = $('#book-title').value;
+    const author = $('#book-author').value;
     const row = makeRow({ name: `${title.trim() || 'audiobook'}.m4b`, size: total });
-    enqueue(row, (progress) => joinAudiobook(files, progress, { title }));
+    enqueue(row, (progress) => joinAudiobook(files, progress, { title, author, separate: $('#book-output').value === 'tracks' }));
   } else if (tool === 'merge-pdf') {
     const row = makeRow({ name: 'merged.pdf', size: total });
     enqueue(row, async (progress) => {

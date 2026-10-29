@@ -41,17 +41,36 @@ function withTimeout(promise, ms, message) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+const START_FAILED = "The video engine didn't start. Check your connection, then reload the page and try again.";
+
+async function createEngine(progress) {
+  const wasm = await fetchWasm(progress);
+  progress?.('Starting the video engine…');
+  const ff = new FFmpeg();
+  await ff.load({ coreURL: CORE + 'ffmpeg-core.js', wasmURL: wasm });
+  return ff;
+}
+
+// Extra engines that run alongside the main one, so several tracks can be encoded at the same time.
+const extraEngines = new Set();
+
+// Starts a separate engine the caller owns. Pass it to ffmpegJob as `{ engine }` and call `close()` when finished.
+export async function openEngine(progress) {
+  const ff = await withTimeout(createEngine(progress), START_TIMEOUT_MS, START_FAILED);
+  const engine = {
+    ff,
+    close() {
+      extraEngines.delete(engine);
+      try { ff.terminate(); } catch { /* already gone */ }
+    },
+  };
+  extraEngines.add(engine);
+  return engine;
+}
+
 function getEngine(progress) {
   if (!enginePromise) {
-    const start = (async () => {
-      const wasm = await fetchWasm(progress);
-      progress?.('Starting the video engine…');
-      const ff = new FFmpeg();
-      await ff.load({ coreURL: CORE + 'ffmpeg-core.js', wasmURL: wasm });
-      return ff;
-    })();
-    enginePromise = withTimeout(start, START_TIMEOUT_MS,
-      "The video engine didn't start. Check your connection, then reload the page and try again.");
+    enginePromise = withTimeout(createEngine(progress), START_TIMEOUT_MS, START_FAILED);
     // A failed or abandoned start is forgotten, so the next job tries again from scratch.
     enginePromise.catch(() => { enginePromise = null; });
   }
@@ -68,6 +87,7 @@ function resetEngine() {
 export function cancelEngine() {
   cancelled = true;
   resetEngine();
+  for (const engine of [...extraEngines]) engine.close();
 }
 
 const toSeconds = (h, m, s) => Number(h) * 3600 + Number(m) * 60 + Number(s);
@@ -87,9 +107,10 @@ function parseInfo(text) {
 }
 
 // Mounts the file (or files) read-only inside ffmpeg (no copy into memory), probes the first one, and hands `fn` a job object.
-export async function ffmpegJob(file, progress, fn) {
-  cancelled = false;
-  const ff = await getEngine(progress);
+// With `{ engine }` (from openEngine) the job runs on that engine and leaves it running afterwards.
+export async function ffmpegJob(file, progress, fn, { engine } = {}) {
+  if (!engine) cancelled = false;
+  const ff = engine ? engine.ff : await getEngine(progress);
   const id = ++jobCount;
   const dir = `/in${id}`;
   const files = Array.isArray(file) ? file : [file];
@@ -169,18 +190,19 @@ export async function ffmpegJob(file, progress, fn) {
     if (cancelled) throw new Error('Cancelled.');
     // An out-of-memory abort leaves the engine unusable, so start fresh next time.
     if (/abort|memory|terminate|RuntimeError/i.test(String(e?.message ?? e))) {
-      resetEngine();
+      if (engine) engine.close(); else resetEngine();
       throw new Error('Ran out of memory. Try a shorter file, or close other tabs and try again.');
     }
     throw e;
   } finally {
-    if (enginePromise) {
+    if (engine || enginePromise) {
       for (const out of [...outputs, ...scratch]) await ff.deleteFile(out).catch(() => {});
       await ff.unmount(dir).catch(() => {});
       await ff.deleteDir(dir).catch(() => {});
     }
     // Shut the engine down after every job, so memory from one file can't build up across a long queue.
     // The next job starts a fresh engine (the 32 MB download is reused, so this only costs a moment).
-    resetEngine();
+    // An engine passed in by the caller is theirs to close.
+    if (!engine) resetEngine();
   }
 }

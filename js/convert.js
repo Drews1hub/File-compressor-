@@ -96,15 +96,31 @@ function canCopy(to, { video, audio }) {
   return false;
 }
 
-function convertMedia(file, to, progress) {
+// File name and tags for an audiobook. The title names the file and is stored as the book's title and album,
+// which is what iTunes lists it under. It is also flagged as an audiobook (media type 2, M4B file type)
+// so iTunes puts it under Audiobooks, with chapter navigation.
+export function audiobookTags(title = '', fallback = 'audiobook', author = '') {
+  const name = title.trim();
+  const by = author.trim();
+  const clean = (s) => s.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  return {
+    file: `${clean(name) || fallback}.m4b`,
+    meta: [...(name ? ['-metadata', `title=${name}`, '-metadata', `album=${name}`] : []),
+      ...(by ? ['-metadata', `artist=${by}`, '-metadata', `album_artist=${by}`] : []),
+      '-metadata', 'media_type=2', '-metadata', 'genre=Audiobook', '-brand', 'M4B '],
+  };
+}
+
+function convertMedia(file, to, progress, { title = '' } = {}) {
   return ffmpegJob(file, progress, async (job) => {
     const { duration, video, audio } = job.info;
-    const name = `${baseName(file.name)}.${to}`;
+    const book = to === 'm4b' ? audiobookTags(title, baseName(file.name)) : null;
+    const name = book ? book.file : `${baseName(file.name)}.${to}`;
     const opts = { duration, label: `Converting to ${FORMAT_LABELS[to]}` };
 
     if (AUDIO_ARGS[to]) {
       if (!audio) throw new Error('This file has no sound track to convert.');
-      const blob = await job.encode(['-i', job.input, '-map', '0:a:0', ...AUDIO_ARGS[to]], to, MIME[to], opts);
+      const blob = await job.encode(['-i', job.input, '-map', '0:a:0', ...AUDIO_ARGS[to], ...(book?.meta ?? [])], to, MIME[to], opts);
       return { outputs: [{ blob, name }], note: video ? 'Sound track only — the picture was dropped.' : '' };
     }
 
@@ -195,8 +211,8 @@ const convertPdf = (file, to, progress) => withPdf(file, async (pdf) => {
 
 const CONVERTERS = { image: convertImage, video: convertMedia, audio: convertMedia, pdf: convertPdf };
 
-export function convert(file, to, progress) {
+export function convert(file, to, progress, options) {
   const fn = to.endsWith('-ocr') ? ocrConvert : to === 'epub' || kindOf(file) === 'ebook' ? convertBook : kindOf(file) === 'cad' ? convertCad : CONVERTERS[kindOf(file)];
   if (!fn || !targetsFor(file).includes(to)) throw new Error(`Can't convert this file to ${FORMAT_LABELS[to] ?? to}.`);
-  return fn(file, to, progress);
+  return fn(file, to, progress, options);
 }

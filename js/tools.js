@@ -1,7 +1,8 @@
 // The "File tools" tab: trim, merge/split PDFs, photos → PDF, rotate/resize photos, open archives.
 import { ext, baseName, fmt, fmtDuration, kindOf, canvasToBlob, makeCanvas, loadScript, tick, VIDEO_EXT, AUDIO_EXT } from './util.js';
 import { decodeImage, canEncode } from './images.js';
-import { ffmpegJob } from './engine.js';
+import { ffmpegJob, openEngine } from './engine.js';
+import { audiobookTags } from './convert.js';
 
 let pdfLibReady = null;
 const loadPdfLib = () => {
@@ -105,20 +106,135 @@ async function copyJoin(job, files, durations, total, book) {
   };
 }
 
+// Re-encodes the tracks into one AAC book on a single engine. Every track is resampled to one format,
+// so files with different sample rates or mono/stereo can be joined.
+async function reencodeJoin(job, files, durations, total, book) {
+  const n = files.length;
+  const inputs = job.inputs.flatMap((path) => ['-i', path]);
+  const chains = job.inputs.map((_, i) => `[${i}:a:0]${TO_STEREO_44K}[a${i}]`);
+  const concat = `${job.inputs.map((_, i) => `[a${i}]`).join('')}concat=n=${n}:v=0:a=1[out]`;
+  const chapters = await chapterInput(job, files, durations, n);
+  const blob = await job.encode([...inputs, ...chapters.extra, '-filter_complex', [...chains, concat].join(';'),
+    '-map', '[out]', ...chapters.map, '-c:a', 'aac', '-b:a', '192k', ...book.meta, '-f', 'ipod'],
+  'm4b', 'audio/mp4', { duration: total, label: 'Joining' });
+  return {
+    outputs: [{ blob, name: book.file }],
+    summary: n > 1
+      ? `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, one chapter per file.`
+      : `Done — one audiobook, ${fmtDuration(total)} long.`,
+    note: 'Re-encoded to AAC 192k so the tracks join cleanly.',
+  };
+}
+
+const TO_STEREO_44K = 'aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo';
+
+// How many engines to encode with at once: one core is left for the page, and four is plenty.
+const encodeWorkers = (tracks) => Math.min(tracks, 4, Math.max(1, (navigator.hardwareConcurrency || 2) - 1));
+
+// Runs ffmpeg on every file, several at a time on separate engines, and returns the outputs in order.
+// `buildArgs(i, job)` gives { args, ext, type } for file i. Each file is encoded once, on its own engine.
+async function encodeEach(files, durations, total, progress, workers, buildArgs) {
+  const done = new Array(files.length).fill(0);
+  const outputs = new Array(files.length);
+  const report = () => {
+    const frac = durations.reduce((sum, d, i) => sum + d * done[i], 0) / (total || 1);
+    progress?.(`Joining… ${Math.round(frac * 100)}%`, frac);
+  };
+  let next = 0;
+  let failure = null;
+  const worker = async () => {
+    let engine;
+    try {
+      engine = await openEngine(progress);
+      while (!failure && next < files.length) {
+        const i = next++;
+        outputs[i] = await ffmpegJob(files[i], (_text, frac) => {
+          if (typeof frac === 'number') { done[i] = frac; report(); }
+        }, (job) => {
+          const { args, ext, type } = buildArgs(i, job);
+          return job.encode(args, ext, type, { duration: durations[i], label: 'Joining' });
+        }, { engine });
+        done[i] = 1;
+        report();
+      }
+    } catch (e) {
+      failure ??= e;
+    } finally {
+      engine?.close();
+    }
+  };
+  await Promise.all(Array.from({ length: workers }, worker));
+  if (failure) throw failure;
+  return outputs;
+}
+
+// Encodes each track to AAC on its own engine, several at a time. Same encoder and settings as the single-engine
+// path, so the sound is the same; the pieces are joined afterwards without encoding again.
+async function encodeTracks(files, durations, total, progress, workers) {
+  const blobs = await encodeEach(files, durations, total, progress, workers, (_i, job) => ({
+    args: ['-i', job.input, '-map', '0:a:0', '-af', TO_STEREO_44K, '-c:a', 'aac', '-b:a', '192k', '-f', 'ipod'],
+    ext: 'm4a',
+    type: 'audio/mp4',
+  }));
+  return blobs.map((blob, i) => new File([blob], `part-${String(i + 1).padStart(4, '0')}.m4a`, { type: 'audio/mp4' }));
+}
+
+// Reads every track's length and format.
+function readTracks(files, progress) {
+  return ffmpegJob(files, progress, async (job) => {
+    const durations = [];
+    const infos = [];
+    for (let i = 0; i < files.length; i++) {
+      progress?.(`Reading ${files[i].name} (${i + 1} of ${files.length})…`, i / files.length);
+      const info = await job.probe(job.inputs[i]);
+      if (!info.audio) throw new Error(`${files[i].name} has no sound track, so it can't be joined.`);
+      infos.push(info.audio);
+      durations.push(info.duration);
+    }
+    return { durations, infos, total: durations.reduce((sum, d) => sum + d, 0) };
+  });
+}
+
+// One audiobook file per track, all tagged with the same album and numbered in order, so iTunes lists them as one
+// book you can open to see every track. AAC tracks are copied as they are; others are re-encoded to AAC 192k.
+async function separateTracks(files, progress, title, author) {
+  const n = files.length;
+  const book = title || 'Audiobook';
+  // iTunes groups tracks by album artist, so the author goes there; without one, the book title stands in.
+  const artist = author || book;
+  const { durations, infos, total } = await readTracks(files, progress);
+  const blobs = await encodeEach(files, durations, total, progress, encodeWorkers(n), (i, job) => ({
+    args: ['-i', job.input, '-map', '0:a:0',
+      ...(infos[i].codec === 'aac' ? ['-c:a', 'copy'] : ['-af', TO_STEREO_44K, '-c:a', 'aac', '-b:a', '192k']),
+      '-metadata', `title=${baseName(files[i].name)}`, '-metadata', `album=${book}`, '-metadata', `artist=${artist}`,
+      '-metadata', `album_artist=${artist}`,
+      '-metadata', `track=${i + 1}/${n}`, '-metadata', 'media_type=2', '-metadata', 'genre=Audiobook',
+      '-brand', 'M4B ', '-f', 'ipod'],
+    ext: 'm4b',
+    type: 'audio/mp4',
+  }));
+  const digits = Math.max(2, String(n).length);
+  return {
+    outputs: blobs.map((blob, i) => ({
+      blob,
+      name: `${String(i + 1).padStart(digits, '0')} ${audiobookTags(baseName(files[i].name)).file}`,
+    })),
+    summary: `Done — ${n} track${n === 1 ? '' : 's'}, listed together as "${book}".`,
+    note: 'Each track is its own file, numbered in order, so iTunes shows them as one book. Add them all to iTunes together.',
+  };
+}
+
 // Joins the tracks, in the order given, into one M4B. With several files each one becomes a chapter,
 // so the book is a single file that can still be navigated by disc and track.
 // A single file keeps whatever chapters it already has.
-export function joinAudiobook(files, progress, { title = '' } = {}) {
-  // The title names the file and is stored in the book as its title and album, which is what iTunes lists it under.
-  const name = title.trim();
-  const book = {
-    file: `${name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120) || 'audiobook'}.m4b`,
-    // Flagged as an audiobook (media type 2, M4B file type) so iTunes lists it under Audiobooks, with chapter navigation.
-    meta: [...(name ? ['-metadata', `title=${name}`, '-metadata', `album=${name}`] : []),
-      '-metadata', 'media_type=2', '-metadata', 'genre=Audiobook', '-brand', 'M4B '],
-  };
-  return ffmpegJob(files, progress, async (job) => {
-    const n = files.length;
+export async function joinAudiobook(files, progress, { title = '', author = '', separate = false } = {}) {
+  if (separate) return separateTracks(files, progress, title.trim(), author.trim());
+  const book = audiobookTags(title, 'audiobook', author);
+  const n = files.length;
+
+  // Pass 1: read every track. If they are all AAC in one format they are copied straight in (lossless, seconds).
+  // A single track, or a computer with no spare core, is re-encoded here; anything else goes on to pass 2.
+  const pass = await ffmpegJob(files, progress, async (job) => {
     const durations = [];
     const infos = [];
     for (let i = 0; i < n; i++) {
@@ -130,32 +246,26 @@ export function joinAudiobook(files, progress, { title = '' } = {}) {
     }
     const total = durations.reduce((s, d) => s + d, 0);
 
-    // If every track is already AAC in the same format, the audio can be copied without re-encoding.
-    // That is lossless and takes seconds. Anything else is re-encoded.
     const first = infos[0];
-    const sameFormat = infos.every((a) => a.codec === 'aac' && a.rate === first.rate && a.channels === first.channels);
-    if (sameFormat) {
+    if (infos.every((a) => a.codec === 'aac' && a.rate === first.rate && a.channels === first.channels)) {
       try {
-        return await copyJoin(job, files, durations, total, book);
+        return { result: await copyJoin(job, files, durations, total, book) };
       } catch { /* fall back to re-encoding */ }
     }
+    if (n < 2 || encodeWorkers(n) < 2) return { result: await reencodeJoin(job, files, durations, total, book) };
+    return { durations, total };
+  });
+  if (pass.result) return pass.result;
 
-    // Every track is resampled to one format, so files with different sample rates or mono/stereo can be joined.
-    const inputs = job.inputs.flatMap((path) => ['-i', path]);
-    const chains = job.inputs.map((_, i) =>
-      `[${i}:a:0]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a${i}]`);
-    const concat = `${job.inputs.map((_, i) => `[a${i}]`).join('')}concat=n=${n}:v=0:a=1[out]`;
-    const chapters = await chapterInput(job, files, durations, n);
-    const blob = await job.encode([...inputs, ...chapters.extra, '-filter_complex', [...chains, concat].join(';'),
-      '-map', '[out]', ...chapters.map, '-c:a', 'aac', '-b:a', '192k', ...book.meta, '-f', 'ipod'],
-    'm4b', 'audio/mp4', { duration: total, label: 'Joining' });
-    return {
-      outputs: [{ blob, name: book.file }],
-      summary: n > 1
-        ? `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, one chapter per file.`
-        : `Done — one audiobook, ${fmtDuration(total)} long.`,
-      note: 'Re-encoded to AAC 192k so the tracks join cleanly.',
-    };
+  // Pass 2: encode the tracks several at a time, then join the finished pieces without encoding again.
+  const parts = await encodeTracks(files, pass.durations, pass.total, progress, encodeWorkers(n));
+  return ffmpegJob(parts, progress, async (job) => {
+    // Chapter times come from the encoded pieces, which are a few milliseconds longer than the originals.
+    const durations = [];
+    for (let i = 0; i < n; i++) durations.push((await job.probe(job.inputs[i])).duration);
+    const total = durations.reduce((s, d) => s + d, 0);
+    const result = await copyJoin(job, files, durations, total, book);
+    return { ...result, note: 'Re-encoded to AAC 192k so the tracks join cleanly.' };
   });
 }
 
