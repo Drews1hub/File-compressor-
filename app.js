@@ -15,6 +15,7 @@ const convertTo = $('#convert-to');
 
 // ---------- settings (remembered per browser) ----------
 
+// Key kept from the old name so saved settings carry over.
 const SETTINGS_KEY = 'file-squeeze-settings';
 const SETTING_FIELDS = ['#target', '#unit', '#percent', '#image-format', '#max-side', '#max-res', '#mute', '#convert-to',
   '#archive-type', '#tool', '#pdf-page', '#number-files'];
@@ -462,7 +463,7 @@ $('#download-all').addEventListener('click', async () => {
     })));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'file-squeeze-results.zip';
+    a.download = 'filefit-results.zip';
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
   } finally {

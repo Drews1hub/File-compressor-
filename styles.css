@@ -1,5 +1,5 @@
 /* Design: Apple-style clarity (system type, soft grey band, frosted bar, segmented controls, 44px targets)
-   with a DJI-style centered hero stack (eyebrow, uppercase wordmark, tagline, chevron links) and dark footer.
+   with a DJI-style centered hero stack (eyebrow, wordmark, tagline, chevron links) and dark footer.
    One accent blue: solid on the main action of a view, as text on links. */
 
 :root {
@@ -22,7 +22,6 @@
 
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
           "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --wordmark: "Futura", "Century Gothic", "Avenir Next", var(--font);
   --ease: cubic-bezier(0.28, 0.11, 0.32, 1);
   --r-tile: 22px;
   --r-control: 12px;
@@ -86,15 +85,15 @@ button, input, select { font: inherit; color: inherit; }
   align-items: center;
   justify-content: space-between;
 }
-.wordmark { font-family: var(--wordmark); text-transform: uppercase; font-weight: 500; letter-spacing: 0.06em; }
-.topbar .wordmark { font-size: 14px; }
+.wordmark { font-weight: 600; letter-spacing: -0.03em; }
+.topbar .wordmark { font-size: 17px; letter-spacing: -0.01em; }
 .topbar-note { font-size: 12px; color: var(--muted); }
 
 /* ---------- hero: centered stack (eyebrow, wordmark, tagline, links) ---------- */
 
 .hero { background: var(--card); text-align: center; padding: 112px 24px 96px; }
 .eyebrow { max-width: 640px; margin: 0 auto 16px; font-size: 16px; line-height: 1.4; color: var(--muted); }
-.hero h1 { margin: 0; font-size: clamp(40px, 7vw, 72px); line-height: 1.05; }
+.hero h1 { margin: 0; font-size: clamp(48px, 9vw, 96px); line-height: 1.05; }
 .tagline {
   margin: 20px 0 0;
   font-size: clamp(22px, 3vw, 32px);
