@@ -42,11 +42,31 @@ main {
 h1 { margin: 0 0 8px; font-size: 2rem; letter-spacing: -0.02em; }
 .lede { margin: 0 0 28px; color: var(--muted); }
 
+.tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.tabs button {
+  padding: 8px 20px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.tabs button[aria-selected="true"] { color: var(--text); background: var(--accent-soft); }
+
 .controls { margin-bottom: 16px; }
 .controls label { display: block; font-weight: 600; margin-bottom: 6px; }
-.target-row { display: flex; align-items: center; gap: 8px; color: var(--muted); }
-.target-row input {
-  width: 90px;
+.control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); }
+input[type="number"], select {
   padding: 8px 10px;
   font: inherit;
   color: var(--text);
@@ -54,6 +74,20 @@ h1 { margin: 0 0 8px; font-size: 2rem; letter-spacing: -0.02em; }
   border: 1px solid var(--border);
   border-radius: 8px;
 }
+.control-row input { width: 90px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.presets button, .picker button, .cancel {
+  padding: 5px 10px;
+  font: inherit;
+  font-size: .85rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.presets button:hover, .picker button:hover, .cancel:hover { border-color: var(--accent); }
+.picker button:disabled { opacity: .5; cursor: default; }
 
 .drop {
   display: flex;
@@ -81,7 +115,11 @@ h1 { margin: 0 0 8px; font-size: 2rem; letter-spacing: -0.02em; }
   padding: 14px 16px;
   overflow-wrap: anywhere;
 }
+.results .row-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .results .name { font-weight: 600; }
+.results .picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 4px; color: var(--muted); font-size: .92rem; }
+.results .picker select { padding: 5px 8px; }
+.downloads:empty { display: none; }
 .results .status { color: var(--muted); font-size: .92rem; margin-top: 2px; }
 .results .status.ok { color: var(--ok); }
 .results .status.err { color: var(--err); }
