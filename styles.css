@@ -320,7 +320,7 @@ button:active:not(:disabled) { transform: scale(0.97); }
 button:disabled { opacity: .4; cursor: default; }
 
 .presets { display: flex; flex-wrap: wrap; gap: 8px; }
-.presets button, .picker button, .cancel {
+.presets button, .picker button, .cancel, .redo {
   min-height: 34px;
   padding: 0 14px;
   font-size: 14px;
@@ -331,7 +331,7 @@ button:disabled { opacity: .4; cursor: default; }
   cursor: pointer;
   transition: background .2s var(--ease), color .2s var(--ease);
 }
-.presets button:hover, .picker button:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.presets button:hover, .picker button:hover:not(:disabled), .redo:hover { background: var(--accent); color: #fff; }
 .cancel:hover { background: var(--err); color: #fff; }
 .picker button:disabled { opacity: .4; cursor: default; }
 

@@ -93,6 +93,7 @@ function enqueue(row, run) {
   row.setStatus(ahead ? `Waiting for ${ahead.name} to finish…` : 'Waiting…');
   row.cancelBtn.hidden = false;
   row.li.dataset.busy = '';
+  row.li.querySelector('.redo').hidden = true;
   lastQueued = row;
   queue = queue.then(async () => {
     try {
@@ -137,6 +138,7 @@ let allOutputs = [];
 function updateBulk() {
   $('#bulk').hidden = !results.children.length;
   $('#save-files').hidden = $('#download-all').hidden = $('#number-label').hidden = allOutputs.length < 2;
+  $('#redo-all').hidden = ![...results.children].some((li) => !li.querySelector('.redo').hidden);
 }
 
 function makeRow(file) {
@@ -145,6 +147,7 @@ function makeRow(file) {
     <div class="row-head">
       <div class="name"></div>
       <div class="row-actions">
+        <button type="button" class="redo" hidden title="Run again with the current settings">Redo</button>
         <button type="button" class="cancel" hidden>Cancel</button>
         <button type="button" class="remove" aria-label="Remove from list" title="Remove from list">✕</button>
       </div>
@@ -163,6 +166,7 @@ function makeRow(file) {
   const bar = li.querySelector('progress');
   const note = li.querySelector('.note');
   const cancelBtn = li.querySelector('.cancel');
+  const redoBtn = li.querySelector('.redo');
 
   // Cancelling rejects this promise, which releases the queue even if the job itself is stuck.
   let abort;
@@ -173,7 +177,19 @@ function makeRow(file) {
     li,
     name: file.name,
     cancelBtn,
+    redoFn: null,
     cancelled: false,
+    // Registers how to run this file again with whatever settings are chosen now.
+    setRedo(fn) { row.redoFn = fn; redoBtn.hidden = !fn || 'busy' in li.dataset; updateBulk(); },
+    // Drops the previous results so the same row can be filled in again.
+    reset() {
+      li.querySelectorAll('.downloads a').forEach((a) => URL.revokeObjectURL(a.href));
+      li.querySelector('.downloads').replaceChildren();
+      allOutputs = allOutputs.filter((o) => o.li !== li);
+      row.setNote('');
+      redoBtn.hidden = true;
+      updateBulk();
+    },
     setStatus(msg, cls = '') { status.textContent = msg; status.className = `status ${cls}`; },
     progress(msg, frac) {
       status.textContent = msg;
@@ -222,10 +238,14 @@ function makeRow(file) {
         cancelBtn.hidden = true;
         delete li.dataset.busy;
         row.finished = true;
+        redoBtn.hidden = !row.redoFn;
         updateOverall();
+        updateBulk();
       }
     },
   };
+
+  redoBtn.addEventListener('click', () => { if (row.redoFn) { row.reset(); row.redoFn(); } });
 
   // Stops this row's job: a waiting job is skipped, a running one stops at its next step
   // (video and audio stop at once, because the converter engine is restarted).
@@ -241,7 +261,9 @@ function makeRow(file) {
       row.setStatus('Cancelled.', 'err');
       delete li.dataset.busy;
       row.finished = true;
+      redoBtn.hidden = !row.redoFn;
       updateOverall();
+      updateBulk();
       li.querySelectorAll('.picker select, .picker button').forEach((el) => { el.disabled = false; });
     }
   };
@@ -260,8 +282,8 @@ function makeRow(file) {
 
 // ---------- compress ----------
 
-function compressFile(file) {
-  const row = makeRow(file);
+function compressFile(file, row = makeRow(file)) {
+  row.setRedo(() => compressFile(file, row));
   const limit = limitFor(file);
 
   if (limit != null && file.size <= limit) {
@@ -286,14 +308,14 @@ function compressFile(file) {
 
 // ---------- convert ----------
 
-function convertFile(file) {
-  const row = makeRow(file);
+function convertFile(file, row = makeRow(file), lastTo = '') {
   const formats = targetsFor(file);
   if (!formats.length) {
     row.setStatus('No conversions for this file type yet. Images, videos, audio and PDFs can be converted.', 'err');
     return;
   }
 
+  row.setRedo(() => convertFile(file, row, select.value));
   const picker = row.li.querySelector('.picker');
   picker.hidden = false;
   picker.innerHTML = '<span>Convert to</span> <select></select> <input type="text" class="book-title" placeholder="Book title (optional)" autocomplete="off" hidden> <input type="text" class="book-title book-author" placeholder="Author (optional)" autocomplete="off" hidden> <button type="button">Convert</button>';
@@ -322,7 +344,8 @@ function convertFile(file) {
   };
   button.addEventListener('click', start);
 
-  const preferred = convertTo.value;
+  // On a redo, use the format chosen now; if none is chosen, repeat the last one.
+  const preferred = convertTo.value || lastTo;
   if (preferred === 'm4b' && formats.includes('m4b')) {
     // Wait, so the book title can be typed before converting.
     select.value = 'm4b';
@@ -453,6 +476,14 @@ const SINGLE_TOOLS = {
   extract: [(file, _s, progress) => extractArchive(file, progress), 'Done — opened.'],
 };
 
+function runSingleTool(tool, file, row) {
+  row.setRedo(() => runSingleTool(tool, file, row));
+  let settings;
+  try { settings = toolSettings(tool); } catch (e) { row.setStatus(e.message, 'err'); return; }
+  const [fn, summary] = SINGLE_TOOLS[tool];
+  enqueue(row, async (progress) => ({ ...(await fn(file, settings, progress)), summary }));
+}
+
 function toolFiles(items) {
   const tool = $('#tool').value;
   const spec = TOOLS[tool];
@@ -464,11 +495,7 @@ function toolFiles(items) {
     } else if (spec.multi) {
       toolItems.push(file);
     } else {
-      const row = makeRow(file);
-      let settings;
-      try { settings = toolSettings(tool); } catch (e) { row.setStatus(e.message, 'err'); continue; }
-      const [fn, summary] = SINGLE_TOOLS[tool];
-      enqueue(row, async (progress) => ({ ...(await fn(file, settings, progress)), summary }));
+      runSingleTool(tool, file, makeRow(file));
     }
   }
   renderToolList();
@@ -572,6 +599,14 @@ $('#save-files').addEventListener('click', () => withBusy($('#save-files'), asyn
     await new Promise((r) => setTimeout(r, 500));
   }
 }));
+
+$('#redo-all').addEventListener('click', () => {
+  for (const li of [...results.children]) {
+    const btn = li.querySelector('.redo');
+    if (!btn.hidden) btn.click();
+  }
+  updateBulk();
+});
 
 $('#clear-results').addEventListener('click', () => {
   // Leave rows that are still waiting or working; drop the rest.
