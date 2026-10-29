@@ -92,6 +92,7 @@ function enqueue(row, run) {
   const ahead = lastQueued && 'busy' in lastQueued.li.dataset ? lastQueued : null;
   row.setStatus(ahead ? `Waiting for ${ahead.name} to finish…` : 'Waiting…');
   row.cancelBtn.hidden = false;
+  row.againBtn.hidden = true;
   row.li.dataset.busy = '';
   lastQueued = row;
   queue = queue.then(async () => {
@@ -139,12 +140,13 @@ function updateBulk() {
   $('#save-files').hidden = $('#download-all').hidden = $('#number-label').hidden = allOutputs.length < 2;
 }
 
-function makeRow(file) {
+function makeRow(file, tag = '') {
   const li = document.createElement('li');
   li.innerHTML = `
     <div class="row-head">
       <div class="name"></div>
       <div class="row-actions">
+        <button type="button" class="again" hidden>Redo</button>
         <button type="button" class="cancel" hidden>Cancel</button>
         <button type="button" class="remove" aria-label="Remove from list" title="Remove from list">✕</button>
       </div>
@@ -155,6 +157,12 @@ function makeRow(file) {
     <div class="note" hidden></div>
     <div class="downloads"></div>`;
   li.querySelector('.name').textContent = `${file.name} · ${fmt(file.size)}`;
+  if (tag) {
+    const span = document.createElement('span');
+    span.className = 'tag';
+    span.textContent = tag;
+    li.querySelector('.name').prepend(span, ' ');
+  }
   // Oldest first, so the list (and "Download all") reads in the order files were added.
   results.append(li);
   updateBulk();
@@ -163,6 +171,7 @@ function makeRow(file) {
   const bar = li.querySelector('progress');
   const note = li.querySelector('.note');
   const cancelBtn = li.querySelector('.cancel');
+  const againBtn = li.querySelector('.again');
 
   // Cancelling rejects this promise, which releases the queue even if the job itself is stuck.
   let abort;
@@ -173,6 +182,8 @@ function makeRow(file) {
     li,
     name: file.name,
     cancelBtn,
+    againBtn,
+    redo: null,
     cancelled: false,
     setStatus(msg, cls = '') { status.textContent = msg; status.className = `status ${cls}`; },
     progress(msg, frac) {
@@ -185,6 +196,14 @@ function makeRow(file) {
       }
     },
     setNote(text) { note.textContent = text || ''; note.hidden = !text; },
+    // Drops earlier downloads, so running the same row again doesn't pile up results.
+    clearOutputs() {
+      li.querySelectorAll('.downloads a').forEach((a) => URL.revokeObjectURL(a.href));
+      li.querySelector('.downloads').replaceChildren();
+      allOutputs = allOutputs.filter((o) => o.li !== li);
+      note.hidden = true;
+      updateBulk();
+    },
     addDownloads(outputs) {
       const box = li.querySelector('.downloads');
       for (const { blob, name } of outputs) {
@@ -220,6 +239,7 @@ function makeRow(file) {
       } finally {
         bar.hidden = true;
         cancelBtn.hidden = true;
+        againBtn.hidden = !row.redo;
         delete li.dataset.busy;
         row.finished = true;
         updateOverall();
@@ -239,6 +259,7 @@ function makeRow(file) {
       cancelEngine();
     } else {
       row.setStatus('Cancelled.', 'err');
+      againBtn.hidden = !row.redo;
       delete li.dataset.busy;
       row.finished = true;
       updateOverall();
@@ -246,6 +267,8 @@ function makeRow(file) {
     }
   };
   cancelBtn.addEventListener('click', row.cancel);
+  li.rowRef = row;
+  againBtn.addEventListener('click', () => row.redo?.());
 
   li.querySelector('.remove').addEventListener('click', () => {
     row.cancel();
@@ -260,34 +283,48 @@ function makeRow(file) {
 
 // ---------- compress ----------
 
+// "99% smaller" reads better than a rounded "0% of the original".
+function smallerBy(from, to) {
+  const saved = (1 - to / from) * 100;
+  if (saved <= 0) return 'no smaller';
+  if (saved >= 99.95) return 'over 99.9% smaller';
+  return `${saved >= 99 ? saved.toFixed(1) : Math.round(saved)}% smaller`;
+}
+
 function compressFile(file) {
-  const row = makeRow(file);
-  const limit = limitFor(file);
+  const row = makeRow(file, 'Compress');
 
-  if (limit != null && file.size <= limit) {
-    row.setStatus(`Already under ${fmt(limit)} — no changes needed.`, 'ok');
-    row.addDownloads([{ blob: file, name: file.name }]);
-    return;
-  }
+  // Also what the Redo button runs, so a changed target size or strength applies to the same file.
+  const start = () => {
+    const limit = limitFor(file);
+    row.clearOutputs();
+    if (limit != null && file.size <= limit) {
+      row.setStatus(`Already under ${fmt(limit)} — no changes needed.`, 'ok');
+      row.addDownloads([{ blob: file, name: file.name }]);
+      row.againBtn.hidden = false;
+      return;
+    }
 
-  const opts = compressOptions(limit);
-  enqueue(row, async (progress) => {
-    const res = await (COMPRESSORS[kindOf(file)] ?? COMPRESSORS.other)(file, opts, progress);
-    const total = res.outputs.reduce((s, o) => s + o.blob.size, 0);
-    const pct = Math.round((total / file.size) * 100);
-    res.summary = res.outputs.length > 1
-      ? `Done — ${res.outputs.length} files, each under ${fmt(limit)}.`
-      : res.outputs[0].blob === file
-        ? 'Kept as is.'
-        : `Done — ${fmt(file.size)} → ${fmt(total)} (${pct}% of the original).`;
-    return res;
-  });
+    const opts = compressOptions(limit);
+    enqueue(row, async (progress) => {
+      const res = await (COMPRESSORS[kindOf(file)] ?? COMPRESSORS.other)(file, opts, progress);
+      const total = res.outputs.reduce((s, o) => s + o.blob.size, 0);
+      res.summary = res.outputs.length > 1
+        ? `Done — ${res.outputs.length} files, each under ${fmt(limit)}.`
+        : res.outputs[0].blob === file
+          ? 'Kept as is.'
+          : `Done — ${fmt(file.size)} → ${fmt(total)} (${smallerBy(file.size, total)}).`;
+      return res;
+    });
+  };
+  row.redo = start;
+  start();
 }
 
 // ---------- convert ----------
 
 function convertFile(file) {
-  const row = makeRow(file);
+  const row = makeRow(file, 'Convert');
   const formats = targetsFor(file);
   if (!formats.length) {
     row.setStatus('No conversions for this file type yet. Images, videos, audio and PDFs can be converted.', 'err');
@@ -303,6 +340,7 @@ function convertFile(file) {
 
   const start = () => {
     const to = select.value;
+    row.convertStarted = true;
     button.disabled = select.disabled = true;
     enqueue(row, async (progress) => {
       try {
@@ -316,6 +354,13 @@ function convertFile(file) {
     });
   };
   button.addEventListener('click', start);
+  // Lets "Convert all waiting files" pick a format for this row and start it.
+  row.convertWith = (to) => {
+    if (row.convertStarted || !formats.includes(to)) return false;
+    select.value = to;
+    start();
+    return true;
+  };
 
   const preferred = convertTo.value;
   if (preferred && formats.includes(preferred)) {
@@ -326,6 +371,26 @@ function convertFile(file) {
       ? `Can't make ${FORMAT_LABELS[preferred]} from this file — pick another format.`
       : 'Pick a format and press Convert.');
   }
+}
+
+// Rows that were dropped without a format and are still waiting for one.
+$('#convert-all').addEventListener('click', () => {
+  const to = convertTo.value;
+  if (!to) return;
+  let started = 0;
+  let skipped = 0;
+  for (const li of results.children) {
+    const row = li.rowRef;
+    if (!row?.convertWith || row.convertStarted) continue;
+    if (row.convertWith(to)) started++; else skipped++;
+  }
+  $('#convert-all-note').textContent = !started && !skipped ? 'No files are waiting for a format.'
+    : `Started ${started} file${started === 1 ? '' : 's'}${skipped ? `; ${skipped} can't be made into ${FORMAT_LABELS[to]}` : ''}.`;
+});
+
+function showConvertAll() {
+  $('#convert-all').disabled = !convertTo.value;
+  $('#convert-all-note').textContent = '';
 }
 
 // ---------- zip ----------
@@ -361,7 +426,7 @@ $('#zip-make').addEventListener('click', () => {
   zipItems = [];
   renderZipList();
 
-  const row = makeRow({ name, size: total });
+  const row = makeRow({ name, size: total }, 'Zip');
   enqueue(row, async (progress) => {
     const files = items.map(({ path, file }) => ({ path, blob: file }));
     const blob = await (type === 'zip' ? makeZip : makeTarGz)(files, progress);
@@ -436,6 +501,11 @@ function toolSettings(tool) {
   }
 }
 
+const TOOL_TAG = {
+  trim: 'Trim', 'join-audio': 'Join', 'merge-pdf': 'Merge', 'split-pdf': 'Split',
+  'photos-pdf': 'Photos to PDF', 'photo-edit': 'Edit photo', extract: 'Open archive',
+};
+
 const SINGLE_TOOLS = {
   trim: [trimMedia, 'Done — trimmed.'],
   'split-pdf': [splitPdf, 'Done — split.'],
@@ -450,11 +520,11 @@ function toolFiles(items) {
   if (tool === 'join-audio') items = [...items].sort((a, b) => a.file.name.localeCompare(b.file.name, undefined, { numeric: true }));
   for (const { file } of items) {
     if (!spec.accepts(file)) {
-      makeRow(file).setStatus(`This tool works with ${spec.what}. Pick another tool above for this file.`, 'err');
+      makeRow(file, TOOL_TAG[tool]).setStatus(`This tool works with ${spec.what}. Pick another tool above for this file.`, 'err');
     } else if (spec.multi) {
       toolItems.push(file);
     } else {
-      const row = makeRow(file);
+      const row = makeRow(file, TOOL_TAG[tool]);
       let settings;
       try { settings = toolSettings(tool); } catch (e) { row.setStatus(e.message, 'err'); continue; }
       const [fn, summary] = SINGLE_TOOLS[tool];
@@ -473,17 +543,17 @@ $('#tool-make').addEventListener('click', () => {
   const total = files.reduce((s, f) => s + f.size, 0);
   if (tool === 'join-audio') {
     const title = $('#book-title').value;
-    const row = makeRow({ name: `${title.trim() || 'audiobook'}.m4b`, size: total });
+    const row = makeRow({ name: `${title.trim() || 'audiobook'}.m4b`, size: total }, TOOL_TAG[tool]);
     enqueue(row, (progress) => joinAudiobook(files, progress, { title }));
   } else if (tool === 'merge-pdf') {
-    const row = makeRow({ name: 'merged.pdf', size: total });
+    const row = makeRow({ name: 'merged.pdf', size: total }, TOOL_TAG[tool]);
     enqueue(row, async (progress) => {
       const { blob, pages } = await mergePdfs(files, progress);
       return { outputs: [{ blob, name: 'merged.pdf' }], summary: `Done — ${files.length} PDFs, ${pages} pages in total.`, note: '' };
     });
   } else {
     const page = $('#pdf-page').value;
-    const row = makeRow({ name: 'photos.pdf', size: total });
+    const row = makeRow({ name: 'photos.pdf', size: total }, TOOL_TAG[tool]);
     enqueue(row, async (progress) => {
       const blob = await photosToPdf(files, { page }, progress);
       return { outputs: [{ blob, name: 'photos.pdf' }], summary: `Done — ${files.length} page${files.length === 1 ? '' : 's'}.`, note: '' };
@@ -621,9 +691,17 @@ for (const b of $$('.presets button')) {
   b.addEventListener('click', () => { $('#target').value = b.dataset.mb; $('#unit').value = 'mb'; saveSettings(); });
 }
 
+// "How It Works" lives in a collapsed section, so open it when a link points there.
+const openHelp = () => { $('#help').open = true; };
+for (const a of $$('a[href="#help"]')) a.addEventListener('click', openHelp);
+window.addEventListener('hashchange', () => { if (location.hash === '#help') openHelp(); });
+if (location.hash === '#help') openHelp();
+
 loadSettings();
 showGoal();
 showTool();
+showConvertAll();
+convertTo.addEventListener('change', showConvertAll);
 for (const el of $$('#panel-compress input, #panel-compress select, #convert-to, #archive-type, #tool, #pdf-page, #number-files')) {
   el.addEventListener('change', () => { showGoal(); saveSettings(); });
 }

@@ -26,7 +26,6 @@
     <p class="tagline">Shrink It Here. Keep It Yours</p>
     <p class="lede">Everything runs in your browser. Your files never leave your device.</p>
     <div class="cta-row">
-      <a class="link-cta" href="#app">Get Started</a>
       <a class="link-cta" href="#help">How It Works</a>
     </div>
     <ul class="specs">
@@ -152,7 +151,9 @@
               <option value="pdf-ocr">Searchable PDF (OCR)</option><option value="txt-ocr">Text from scan (OCR)</option>
             </optgroup>
           </select>
+          <button type="button" id="convert-all" class="picker-all">Convert all waiting files</button>
         </div>
+        <p class="tool-hint" id="convert-all-note" aria-live="polite"></p>
       </div>
       <label class="drop" data-mode="convert">
         <input type="file" multiple hidden>
@@ -292,7 +293,7 @@
     <ul id="results" class="results"></ul>
 
     <details class="help" id="help">
-      <summary>How compression works for each file type</summary>
+      <summary>How it works: what happens to each file type</summary>
       <dl>
         <dt>Images (JPG, PNG, WebP, GIF, BMP, HEIC, TIFF)</dt>
         <dd>Re-encoded as JPEG (or WebP when the picture has see-through parts, so they stay see-through), lowering quality first
