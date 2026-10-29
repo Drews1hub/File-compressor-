@@ -2,14 +2,22 @@
 
 A free file compressor and converter that runs entirely in your web browser. Your files are never uploaded to a server.
 
-- **Compress** shrinks files to fit under a size limit (30 MB by default, with presets for email and Discord).
+- **Compress** makes files smaller. Three ways to say how small:
+  - **Fit a size:** under a limit in MB or KB (30 MB by default, with presets for Claude, email and Discord).
+  - **Pick a strength:** Light, Balanced or Strong, the same settings for every file.
+  - **Shrink by %:** at most a share of each file's current size.
+
+  *More options* sets the photo format (Auto keeps transparency by using WebP), a maximum photo size,
+  a maximum video resolution, and whether to remove the sound from videos.
 - **Convert** changes a file's format: images, video, audio and PDFs.
+- **Zip** bundles files or whole folders (structure kept) into a ZIP or TAR.GZ.
+- **Download all** saves every result in one ZIP. Settings are remembered in your browser.
 
 ## Compress: how each file type is handled
 
 | File type | What happens |
 |---|---|
-| Images (JPG, PNG, WebP, GIF, BMP, AVIF, HEIC, TIFF) | Saved as a JPEG. The quality goes down first, then the resolution if that isn't enough. |
+| Images (JPG, PNG, WebP, GIF, BMP, AVIF, HEIC, TIFF) | Saved as a JPEG, or WebP if the picture has transparent parts. The quality goes down first, then the resolution. Location and camera details (EXIF/GPS) are removed. |
 | Video (MP4, MOV, MKV, WebM, AVI, …) | Re-encoded as MP4 (H.264) at the bitrate that fits, capped at 30 fps. The resolution drops (1080p → 720p → 480p…) when the bitrate gets low. |
 | Audio (MP3, WAV, M4A, FLAC, OGG, …) | Re-encoded as MP3 at the highest bitrate that fits. |
 | PDF | Each page is turned into a compressed image and put back into a new PDF. Claude can still read it, but you can't select the text anymore. |
@@ -47,6 +55,7 @@ It's just static files, so there's no build step.
 - `app.js`: the page (tabs, file rows, work queue)
 - `js/compress.js`, `js/convert.js`: what happens to each file type
 - `js/engine.js`: wrapper around ffmpeg.wasm (video, audio, unusual image formats)
+- `js/archive.js`: ZIP / TAR.GZ writing and reading dropped folders
 - `js/images.js`, `js/pdf.js`, `js/util.js`: shared helpers
 
 ## Libraries

@@ -1,4 +1,4 @@
-import { ext, canvasToBlob, drawToCanvas, loadScript } from './util.js';
+import { ext, canvasToBlob, makeCanvas, drawToCanvas, loadScript } from './util.js';
 import { ffmpegJob } from './engine.js';
 
 let heicReady = null;
@@ -37,21 +37,51 @@ export async function decodeImage(file, progress) {
   return createImageBitmap(png);
 }
 
-// Biggest JPEG under `target` for this bitmap: binary search on quality, then shrink resolution if needed.
-export async function encodeImageUnder(bitmap, target, progress) {
-  const MAX_DIM = 8000; // Claude downsizes anything larger anyway
-  let scale = Math.min(1, MAX_DIM / Math.max(bitmap.width, bitmap.height));
+const encodable = {};
+// Whether this browser's canvas can write `type` (Safari can't write WebP and hands back PNG instead).
+export async function canEncode(type) {
+  encodable[type] ??= canvasToBlob(makeCanvas(1, 1), type).then((b) => b.type === type).catch(() => false);
+  return encodable[type];
+}
+
+// True if any pixel is noticeably see-through. Checks a small copy, which is plenty to spot a transparent background.
+export function hasAlpha(bitmap) {
+  const scale = Math.min(1, 256 / Math.max(bitmap.width, bitmap.height));
+  const canvas = drawToCanvas(bitmap, scale, null);
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 3; i < data.length; i += 4) if (data[i] < 250) return true;
+  return false;
+}
+
+// Output type for compressed photos: 'auto' keeps transparency (WebP, or PNG where WebP can't be written).
+export async function pickImageType(bitmap, pref) {
+  if (pref === 'jpg') return 'image/jpeg';
+  const webp = await canEncode('image/webp');
+  if (pref === 'webp') return webp ? 'image/webp' : 'image/jpeg';
+  if (!hasAlpha(bitmap)) return 'image/jpeg';
+  return webp ? 'image/webp' : 'image/png';
+}
+
+export const typeExt = (type) => ({ 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/png': 'png' }[type]);
+export const typeLabel = (type) => ({ 'image/jpeg': 'JPEG', 'image/webp': 'WebP', 'image/png': 'PNG' }[type]);
+
+// Biggest image under `target` for this bitmap: binary search on quality, then shrink resolution if needed.
+// PNG has no quality setting, so for PNG only the resolution goes down.
+export async function encodeImageUnder(bitmap, target, progress, { type = 'image/jpeg', maxDim = 8000 } = {}) {
+  let scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+  const lossy = type !== 'image/png';
+  const background = type === 'image/jpeg' ? '#ffffff' : null;
   const MIN_Q = 0.45;
   const MAX_Q = 0.92;
 
   for (let attempt = 0; attempt < 15; attempt++) {
-    const canvas = drawToCanvas(bitmap, scale, '#ffffff');
+    const canvas = drawToCanvas(bitmap, scale, background);
     progress?.(`Trying ${canvas.width}×${canvas.height}…`);
 
-    const top = await canvasToBlob(canvas, 'image/jpeg', MAX_Q);
+    const top = await canvasToBlob(canvas, type, MAX_Q);
     if (top.size <= target) return { blob: top, width: canvas.width, height: canvas.height };
 
-    const bottom = await canvasToBlob(canvas, 'image/jpeg', MIN_Q);
+    const bottom = lossy ? await canvasToBlob(canvas, type, MIN_Q) : top;
     if (bottom.size > target) {
       // Even low quality is too big: shrink pixels in proportion to the overshoot.
       scale *= Math.min(0.9, Math.sqrt(target / bottom.size) * 0.95);
@@ -61,7 +91,7 @@ export async function encodeImageUnder(bitmap, target, progress) {
     let lo = MIN_Q, hi = MAX_Q, best = bottom;
     for (let i = 0; i < 6; i++) {
       const mid = (lo + hi) / 2;
-      const b = await canvasToBlob(canvas, 'image/jpeg', mid);
+      const b = await canvasToBlob(canvas, type, mid);
       if (b.size <= target) { best = b; lo = mid; } else { hi = mid; }
     }
     return { blob: best, width: canvas.width, height: canvas.height };

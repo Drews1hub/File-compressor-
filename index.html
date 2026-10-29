@@ -22,20 +22,76 @@
     <div class="tabs" role="tablist">
       <button role="tab" id="tab-compress" aria-controls="panel-compress" aria-selected="true">Compress</button>
       <button role="tab" id="tab-convert" aria-controls="panel-convert" aria-selected="false">Convert</button>
+      <button role="tab" id="tab-zip" aria-controls="panel-zip" aria-selected="false">Zip</button>
     </div>
 
     <section id="panel-compress" role="tabpanel" aria-labelledby="tab-compress">
       <div class="controls">
-        <label for="target">Target size</label>
-        <div class="control-row">
-          <input id="target" type="number" min="1" max="2000" step="1" value="30">
-          <span>MB per file</span>
-          <span class="presets">
-            <button type="button" data-mb="30" title="Claude upload limit">Claude 30</button>
-            <button type="button" data-mb="25" title="Gmail attachment limit">Email 25</button>
-            <button type="button" data-mb="10" title="Discord free upload limit">Discord 10</button>
-          </span>
+        <span class="label" id="goal-label">How small?</span>
+        <div class="segmented" role="radiogroup" aria-labelledby="goal-label">
+          <label><input type="radio" name="goal" value="size" checked><span>Fit a size</span></label>
+          <label><input type="radio" name="goal" value="level"><span>Pick a strength</span></label>
+          <label><input type="radio" name="goal" value="percent"><span>Shrink by %</span></label>
         </div>
+
+        <div class="goal" data-goal="size">
+          <div class="control-row">
+            <input id="target" type="number" min="1" max="65000" step="1" value="30" aria-label="Target size">
+            <select id="unit" aria-label="Unit"><option value="mb">MB</option><option value="kb">KB</option></select>
+            <span>per file</span>
+            <span class="presets">
+              <button type="button" data-mb="30" title="Claude upload limit">Claude 30</button>
+              <button type="button" data-mb="25" title="Gmail attachment limit">Email 25</button>
+              <button type="button" data-mb="10" title="Discord free upload limit">Discord 10</button>
+            </span>
+          </div>
+        </div>
+
+        <div class="goal" data-goal="level" hidden>
+          <div class="levels" role="radiogroup" aria-label="Strength">
+            <label><input type="radio" name="level" value="light"><strong>Light</strong><small>Looks almost the same</small></label>
+            <label><input type="radio" name="level" value="balanced" checked><strong>Balanced</strong><small>Good look, much smaller</small></label>
+            <label><input type="radio" name="level" value="strong"><strong>Strong</strong><small>Smallest, visibly softer</small></label>
+          </div>
+        </div>
+
+        <div class="goal" data-goal="percent" hidden>
+          <div class="control-row">
+            <input id="percent" type="range" min="10" max="90" step="5" value="50" aria-label="Size as percent of original">
+            <output id="percent-out" for="percent">At most 50% of the original size</output>
+          </div>
+        </div>
+
+        <details class="more">
+          <summary>More options</summary>
+          <div class="option-grid">
+            <label for="image-format">Photo format</label>
+            <select id="image-format">
+              <option value="auto">Auto (JPG, or WebP if it has transparency)</option>
+              <option value="jpg">Always JPG</option>
+              <option value="webp">Always WebP (smaller)</option>
+            </select>
+            <label for="max-side">Photo max size</label>
+            <select id="max-side">
+              <option value="0">No limit</option>
+              <option value="3840">3840 px (4K)</option>
+              <option value="2560">2560 px</option>
+              <option value="1920">1920 px (Full HD)</option>
+              <option value="1280">1280 px</option>
+              <option value="800">800 px</option>
+            </select>
+            <label for="max-res">Video max resolution</label>
+            <select id="max-res">
+              <option value="0">Auto</option>
+              <option value="1080">1080p</option>
+              <option value="720">720p</option>
+              <option value="480">480p</option>
+              <option value="360">360p</option>
+            </select>
+            <span></span>
+            <label class="check"><input type="checkbox" id="mute"> Remove sound from videos</label>
+          </div>
+        </details>
       </div>
       <label class="drop" data-mode="compress">
         <input type="file" multiple hidden>
@@ -78,13 +134,44 @@
       </label>
     </section>
 
+    <section id="panel-zip" role="tabpanel" aria-labelledby="tab-zip" hidden>
+      <div class="controls">
+        <label for="archive-type">Archive type</label>
+        <div class="control-row">
+          <select id="archive-type">
+            <option value="zip">ZIP (opens everywhere)</option>
+            <option value="tgz">TAR.GZ (Mac / Linux)</option>
+          </select>
+          <input id="archive-name" type="text" value="files" aria-label="Archive name" placeholder="Archive name">
+        </div>
+      </div>
+      <label class="drop" data-mode="zip">
+        <input type="file" multiple hidden>
+        <strong>Drop files or folders to bundle</strong>
+        <span>or click to choose files</span>
+        <small>Folder structure is kept. Nothing is lost — every file comes back out exactly the same.</small>
+      </label>
+      <div id="zip-list" class="zip-list" hidden>
+        <ul></ul>
+        <div class="zip-actions">
+          <button type="button" id="zip-make" class="primary">Make archive</button>
+          <button type="button" id="zip-clear">Clear</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="bulk" class="bulk" hidden>
+      <button type="button" id="download-all" class="primary">Download all as ZIP</button>
+      <button type="button" id="clear-results">Clear list</button>
+    </div>
     <ul id="results" class="results"></ul>
 
     <details class="help">
       <summary>How compression works for each file type</summary>
       <dl>
         <dt>Images (JPG, PNG, WebP, GIF, BMP, HEIC, TIFF)</dt>
-        <dd>Re-encoded as JPEG, lowering quality first and then resolution until it fits. iPhone HEIC photos are supported.</dd>
+        <dd>Re-encoded as JPEG (or WebP when the picture has see-through parts, so they stay see-through), lowering quality first
+          and then resolution. iPhone HEIC photos are supported. Location and camera details (EXIF/GPS) are removed along the way.</dd>
         <dt>Video (MP4, MOV, MKV, WebM, AVI…)</dt>
         <dd>Re-encoded as MP4 (H.264) at the bitrate that fits your target, dropping resolution (1080p → 720p → 480p…) when needed.
           Compression runs on your computer's processor, so it takes a while — roughly as long as the video, often longer.</dd>
@@ -100,6 +187,8 @@
         <dt>Anything else</dt>
         <dd>Put into a ZIP at maximum compression. Claude may not open every archive, so use this as a last resort.</dd>
       </dl>
+      <p><strong>Fit a size</strong> aims for the biggest file that's still under your limit. <strong>Pick a strength</strong> uses fixed
+        settings, so files of all sizes get the same treatment. <strong>Shrink by %</strong> makes each file at most that share of its current size (often smaller).</p>
       <p>Files already under the target are passed through untouched.
         Video and audio need a one-time 32 MB download of the converter engine, which your browser then keeps.</p>
     </details>
