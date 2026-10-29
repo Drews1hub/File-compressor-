@@ -3,7 +3,7 @@ import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
-import { TOOLS, parseTime, trimMedia, joinAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js';
+import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;
@@ -412,6 +412,7 @@ $('#zip-clear').addEventListener('click', () => { zipItems = []; renderZipList()
 const TOOL_TEXT = {
   trim: ['Drop videos or audio to trim', 'Times are minutes:seconds, like 1:30. Leave End blank to keep everything after Start.'],
   'join-audio': ['Drop the audio tracks, all discs at once', 'Everything is joined into one audiobook file, with a chapter at the start of each track so you can still skip between discs. Files dropped together are sorted by name; use the arrows to fix the order.'],
+  'split-audio': ['Drop your audiobook here', 'It is cut at its chapter markers into numbered tracks, all tagged as one book, so iTunes lists them together. It needs a file with chapters, such as one made with the join tool\'s "One file" option.'],
   'merge-pdf': ['Drop the PDFs to merge', 'Pages keep their text and quality. Put the list in order, then merge.'],
   'split-pdf': ['Drop a PDF to split', 'Every part keeps its text selectable.'],
   'photos-pdf': ['Drop the photos for your PDF', 'One photo per page, in the order listed. iPhone HEIC photos work too.'],
@@ -463,6 +464,7 @@ function renderToolList() {
 function toolSettings(tool) {
   switch (tool) {
     case 'trim': return { start: parseTime($('#trim-start').value), end: parseTime($('#trim-end').value), exact: !$('#trim-quick').checked };
+    case 'split-audio': return { title: $('#split-title').value, author: $('#split-author').value };
     case 'split-pdf': return { mode: checked('split-mode'), ranges: $('#split-ranges').value };
     case 'photo-edit': return { rotate: Number($('#edit-rotate').value), resize: $('#edit-resize').value, flip: $('#edit-flip').checked };
     default: return {};
@@ -471,6 +473,7 @@ function toolSettings(tool) {
 
 const SINGLE_TOOLS = {
   trim: [trimMedia, 'Done — trimmed.'],
+  'split-audio': [splitAudiobook, 'Done — split by chapters.'],
   'split-pdf': [splitPdf, 'Done — split.'],
   'photo-edit': [editPhoto, 'Done.'],
   extract: [(file, _s, progress) => extractArchive(file, progress), 'Done — opened.'],

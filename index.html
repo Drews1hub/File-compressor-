@@ -171,6 +171,7 @@
           <select id="tool">
             <option value="trim">Trim a video or audio clip</option>
             <option value="join-audio">Join audio tracks into one audiobook (M4B)</option>
+            <option value="split-audio">Split an audiobook into tracks by its chapters</option>
             <option value="merge-pdf">Merge PDFs into one</option>
             <option value="split-pdf">Split a PDF into parts</option>
             <option value="photos-pdf">Turn photos into one PDF</option>
@@ -198,6 +199,13 @@
             <option value="tracks">Separate tracks, listed together as one book</option>
             <option value="one">One file, with a chapter for each track</option>
           </select>
+        </div>
+
+        <div class="tool-opts option-grid" data-tool="split-audio" hidden>
+          <label for="split-title">Book title</label>
+          <input id="split-title" type="text" placeholder="Name of the audiobook (optional)" autocomplete="off">
+          <label for="split-author">Author</label>
+          <input id="split-author" type="text" placeholder="Author (optional)" autocomplete="off">
         </div>
 
         <div class="tool-opts option-grid" data-tool="split-pdf" hidden>
