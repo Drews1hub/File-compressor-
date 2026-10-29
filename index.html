@@ -116,7 +116,7 @@
         <input type="file" multiple hidden>
         <strong>Drop files to compress</strong>
         <span>or click to choose</span>
-        <small>Photos (incl. iPhone HEIC) · Videos · Audio · PDFs · Word / PowerPoint / Excel · text &amp; CSV · anything else gets zipped</small>
+        <small>Photos (incl. iPhone HEIC) · Videos · Audio · PDFs · Word / PowerPoint / Excel · text &amp; CSV · e-books and CAD files · anything else gets zipped</small>
       </label>
     </section>
 
@@ -142,6 +142,15 @@
             <optgroup label="Document">
               <option value="txt">Text (TXT, from PDF)</option>
             </optgroup>
+            <optgroup label="E-book">
+              <option value="epub">EPUB (e-book)</option><option value="html">Web page (HTML)</option>
+            </optgroup>
+            <optgroup label="CAD and 3D">
+              <option value="dxf">DXF (CAD drawing)</option><option value="svg">SVG (vector drawing)</option><option value="stl">STL (3D model)</option><option value="obj">OBJ (3D model)</option>
+            </optgroup>
+            <optgroup label="Scan (OCR, English)">
+              <option value="pdf-ocr">Searchable PDF (OCR)</option><option value="txt-ocr">Text from scan (OCR)</option>
+            </optgroup>
           </select>
         </div>
       </div>
@@ -149,7 +158,9 @@
         <input type="file" multiple hidden>
         <strong>Drop files to convert</strong>
         <span>or click to choose</span>
-        <small>Images ↔ JPG / PNG / WebP / GIF / PDF · Video ↔ MP4 / WebM / MOV / GIF · Video → MP3 · Audio ↔ MP3 / WAV / M4A / M4B / OGG / FLAC · PDF → JPG / PNG / text</small>
+        <small>Images ↔ JPG / PNG / WebP / GIF / PDF · Video ↔ MP4 / WebM / MOV / GIF · Video → MP3 · Audio ↔ MP3 / WAV / M4A / M4B / OGG / FLAC · PDF → JPG / PNG / text ·
+          Scans and PDFs → searchable PDF or text (OCR, English) · E-books: EPUB / MOBI / AZW3 / FB2 → EPUB / PDF / HTML / text, and text / PDF → EPUB ·
+          CAD: DWG / DXF → DXF / SVG / PNG / PDF, STEP / IGES / STL / OBJ → STL / OBJ / picture</small>
       </label>
     </section>
 
@@ -293,13 +304,15 @@
         <dd>Embedded pictures are downsized and recompressed; your text and layout stay the same.</dd>
         <dt>Text, CSV, JSON, Markdown, code</dt>
         <dd>Split into several parts that each fit the limit. CSV/TSV parts keep the header row.</dd>
+        <dt>E-books and CAD files (EPUB, MOBI, DXF, STEP…)</dt>
+        <dd>These are already compact, so Compress puts them in a ZIP. Use the Convert tab to change their format.</dd>
         <dt>Anything else</dt>
         <dd>Put into a ZIP at maximum compression. Claude may not open every archive, so use this as a last resort.</dd>
       </dl>
       <p><strong>Fit a size</strong> aims for the biggest file that's still under your limit. <strong>Pick a strength</strong> uses fixed
         settings, so files of all sizes get the same treatment. <strong>Shrink by %</strong> makes each file at most that share of its current size (often smaller).</p>
       <p>Files already under the target are passed through untouched.
-        Video and audio need a one-time 32 MB download of the converter engine, which your browser then keeps.</p>
+        Video and audio need a one-time 32 MB download of the converter engine, which your browser then keeps. Scans (OCR), STEP / IGES models and DWG drawings each download their own reader (3 to 11 MB) the first time you use them.</p>
     </details>
   </main>
 

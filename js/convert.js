@@ -2,19 +2,42 @@ import { ext, baseName, kindOf, canvasToBlob, fmtDuration } from './util.js';
 import { decodeImage, encodeImageAs } from './images.js';
 import { withPdf, renderPage, pageText } from './pdf.js';
 import { ffmpegJob } from './engine.js';
+import { ocrConvert } from './ocr.js';
+import { convertBook } from './ebook.js';
+import { convertCad } from './cad.js';
 
 export const FORMAT_LABELS = {
   jpg: 'JPG', png: 'PNG', webp: 'WebP', gif: 'GIF', bmp: 'BMP', tiff: 'TIFF', pdf: 'PDF',
   mp4: 'MP4', webm: 'WebM', mov: 'MOV', mkv: 'MKV', avi: 'AVI',
   mp3: 'MP3', wav: 'WAV', m4a: 'M4A', m4b: 'M4B (audiobook)', ogg: 'OGG', flac: 'FLAC', opus: 'Opus', txt: 'Text (TXT)',
+  'pdf-ocr': 'Searchable PDF (OCR)', 'txt-ocr': 'Text from scan (OCR)',
+  epub: 'EPUB (e-book)', html: 'Web page (HTML)',
+  dxf: 'DXF (CAD drawing)', svg: 'SVG (vector drawing)', stl: 'STL (3D model)', obj: 'OBJ (3D model)',
 };
 
 const TARGETS = {
-  image: ['jpg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'pdf'],
+  image: ['jpg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'pdf', 'pdf-ocr', 'txt-ocr'],
   video: ['mp4', 'webm', 'mov', 'mkv', 'avi', 'gif', 'mp3', 'wav', 'm4a', 'm4b'],
   audio: ['mp3', 'wav', 'm4a', 'm4b', 'ogg', 'flac', 'opus'],
-  pdf: ['jpg', 'png', 'txt'],
+  pdf: ['jpg', 'png', 'txt', 'pdf-ocr', 'txt-ocr', 'epub'],
+  ebook: ['epub', 'txt', 'html', 'pdf'],
 };
+
+// What each CAD file type can become: drawings become pictures, 3D models become other 3D formats or a preview picture.
+const CAD_TARGETS = {
+  dxf: ['svg', 'png', 'pdf'],
+  dwg: ['dxf', 'svg', 'png', 'pdf'],
+  stl: ['obj', 'png'],
+  obj: ['stl', 'png'],
+  step: ['stl', 'obj', 'png'],
+  stp: ['stl', 'obj', 'png'],
+  iges: ['stl', 'obj', 'png'],
+  igs: ['stl', 'obj', 'png'],
+  brep: ['stl', 'obj', 'png'],
+};
+
+// Plain-text files that can become an e-book.
+const BOOK_TEXT = ['txt', 'md', 'markdown', 'html', 'htm'];
 
 const SAME = { jpeg: 'jpg', tif: 'tiff', oga: 'ogg' };
 
@@ -24,6 +47,8 @@ export function targetsFor(file) {
   const own = SAME[ext(file.name)] ?? ext(file.name);
   let list = TARGETS[kind] ?? [];
   if (kind === 'image' && own === 'gif') list = [...list, 'mp4', 'webm']; // animated GIF → video
+  if (kind === 'text' && BOOK_TEXT.includes(own)) list = ['epub'];
+  if (kind === 'cad') list = CAD_TARGETS[own] ?? [];
   return list.filter((t) => t !== own);
 }
 
@@ -171,7 +196,7 @@ const convertPdf = (file, to, progress) => withPdf(file, async (pdf) => {
 const CONVERTERS = { image: convertImage, video: convertMedia, audio: convertMedia, pdf: convertPdf };
 
 export function convert(file, to, progress) {
-  const fn = CONVERTERS[kindOf(file)];
+  const fn = to.endsWith('-ocr') ? ocrConvert : to === 'epub' || kindOf(file) === 'ebook' ? convertBook : kindOf(file) === 'cad' ? convertCad : CONVERTERS[kindOf(file)];
   if (!fn || !targetsFor(file).includes(to)) throw new Error(`Can't convert this file to ${FORMAT_LABELS[to] ?? to}.`);
   return fn(file, to, progress);
 }

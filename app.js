@@ -272,7 +272,7 @@ function compressFile(file) {
 
   const opts = compressOptions(limit);
   enqueue(row, async (progress) => {
-    const res = await COMPRESSORS[kindOf(file)](file, opts, progress);
+    const res = await (COMPRESSORS[kindOf(file)] ?? COMPRESSORS.other)(file, opts, progress);
     const total = res.outputs.reduce((s, o) => s + o.blob.size, 0);
     const pct = Math.round((total / file.size) * 100);
     res.summary = res.outputs.length > 1
