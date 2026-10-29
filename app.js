@@ -107,7 +107,7 @@ let allOutputs = [];
 
 function updateBulk() {
   $('#bulk').hidden = !results.children.length;
-  $('#download-all').hidden = $('#number-label').hidden = allOutputs.length < 2;
+  $('#save-files').hidden = $('#download-all').hidden = $('#number-label').hidden = allOutputs.length < 2;
 }
 
 function makeRow(file) {
@@ -445,32 +445,72 @@ $('#tool').addEventListener('change', showTool);
 
 // ---------- download all / clear ----------
 
-$('#download-all').addEventListener('click', async () => {
-  const btn = $('#download-all');
+// Every finished output with the name it's saved under, in list order.
+function orderedOutputs() {
+  // List order, not finishing order, so a retried or late-converted file keeps its place.
+  const ordered = [...results.children].flatMap((li) => allOutputs.filter((o) => o.li === li));
+  // A number in front keeps the order in players and file managers that sort by name ("Track 10" after "Track 9").
+  const width = Math.max(2, String(ordered.length).length);
+  const number = $('#number-files').checked;
+  const used = new Set();
+  return ordered.map(({ name, blob }, i) => {
+    let path = number ? `${String(i + 1).padStart(width, '0')} - ${name}` : name;
+    // Without numbers two rows can share a name; don't let one overwrite the other.
+    for (let n = 2; used.has(path.toLowerCase()); n++) path = name.replace(/(\.[^.]*)?$/, ` (${n})$1`);
+    used.add(path.toLowerCase());
+    return { path, blob };
+  });
+}
+
+function saveBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
+}
+
+async function withBusy(btn, fn) {
   btn.disabled = true;
   const label = btn.textContent;
-  try {
-    btn.textContent = 'Packing…';
-    // List order, not finishing order, so a retried or late-converted file keeps its place.
-    const rows = [...results.children];
-    const ordered = rows.flatMap((li) => allOutputs.filter((o) => o.li === li));
-    // A number in front keeps the order in players and file managers that sort by name ("Track 10" after "Track 9").
-    const width = Math.max(2, String(ordered.length).length);
-    const number = $('#number-files').checked;
-    const blob = await makeZip(ordered.map(({ name, blob: b }, i) => ({
-      path: number ? `${String(i + 1).padStart(width, '0')} - ${name}` : name,
-      blob: b,
-    })));
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'filefit-results.zip';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
-  } finally {
+  try { await fn((text) => { btn.textContent = text; }); } finally {
     btn.disabled = false;
     btn.textContent = label;
   }
-});
+}
+
+$('#download-all').addEventListener('click', () => withBusy($('#download-all'), async (say) => {
+  say('Packing…');
+  saveBlob(await makeZip(orderedOutputs()), 'filefit-results.zip');
+}));
+
+// The files themselves, no ZIP. Chrome and Edge can write them all into a folder you pick;
+// other browsers get one ordinary download per file (the browser may ask once to allow that).
+$('#save-files').addEventListener('click', () => withBusy($('#save-files'), async (say) => {
+  const files = orderedOutputs();
+  if (window.showDirectoryPicker) {
+    let dir;
+    try { dir = await window.showDirectoryPicker({ id: 'filefit-save', mode: 'readwrite' }); } catch (e) {
+      if (e.name === 'AbortError') return;   // closed the folder picker
+      throw e;
+    }
+    for (const [i, { path, blob }] of files.entries()) {
+      say(`Saving ${i + 1} of ${files.length}…`);
+      const writable = await (await dir.getFileHandle(path, { create: true })).createWritable();
+      await writable.write(blob);
+      await writable.close();
+    }
+    say(`Saved ${files.length} files`);
+    await new Promise((r) => setTimeout(r, 2000));
+    return;
+  }
+  for (const [i, { path, blob }] of files.entries()) {
+    say(`Downloading ${i + 1} of ${files.length}…`);
+    saveBlob(blob, path);
+    // Browsers drop downloads that are started too close together.
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}));
 
 $('#clear-results').addEventListener('click', () => {
   // Leave rows that are still waiting or working; drop the rest.
