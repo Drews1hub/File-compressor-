@@ -308,14 +308,17 @@ function compressFile(file, row = makeRow(file)) {
 
 // ---------- convert ----------
 
-function convertFile(file, row = makeRow(file), lastTo = '') {
+// Audio outputs take a title and an author, which are saved in the file.
+const AUDIO_TARGETS = ['mp3', 'wav', 'm4a', 'm4b', 'ogg', 'flac', 'opus'];
+
+function convertFile(file, row = makeRow(file), lastTo = '', typed = {}) {
   const formats = targetsFor(file);
   if (!formats.length) {
     row.setStatus('No conversions for this file type yet. Images, videos, audio and PDFs can be converted.', 'err');
     return;
   }
 
-  row.setRedo(() => convertFile(file, row, select.value));
+  row.setRedo(() => convertFile(file, row, select.value, { title: titleBox.value, author: authorBox.value }));
   const picker = row.li.querySelector('.picker');
   picker.hidden = false;
   picker.innerHTML = '<span>Convert to</span> <select></select> <input type="text" class="book-title" placeholder="Book title (optional)" autocomplete="off" hidden> <input type="text" class="book-title book-author" placeholder="Author (optional)" autocomplete="off" hidden> <button type="button">Convert</button>';
@@ -324,8 +327,15 @@ function convertFile(file, row = makeRow(file), lastTo = '') {
   const titleBox = picker.querySelector('.book-title:not(.book-author)');
   const authorBox = picker.querySelector('.book-author');
   for (const f of formats) select.add(new Option(FORMAT_LABELS[f], f));
-  // Audiobooks take a title, which names the file and is stored in it, and an author.
-  const showTitle = () => { titleBox.hidden = authorBox.hidden = select.value !== 'm4b'; };
+  titleBox.value = typed.title ?? '';
+  authorBox.value = typed.author ?? '';
+  // For M4B the title names the file and is the book's title and album; other audio keeps its file name.
+  const showTitle = () => {
+    const book = select.value === 'm4b';
+    titleBox.hidden = authorBox.hidden = !AUDIO_TARGETS.includes(select.value);
+    titleBox.placeholder = book ? 'Book title (optional)' : 'Title (optional)';
+    authorBox.placeholder = book ? 'Author (optional)' : 'Author or artist (optional)';
+  };
   select.addEventListener('change', showTitle);
 
   const start = () => {
@@ -346,11 +356,11 @@ function convertFile(file, row = makeRow(file), lastTo = '') {
 
   // On a redo, use the format chosen now; if none is chosen, repeat the last one.
   const preferred = convertTo.value || lastTo;
-  if (preferred === 'm4b' && formats.includes('m4b')) {
-    // Wait, so the book title can be typed before converting.
-    select.value = 'm4b';
+  if (AUDIO_TARGETS.includes(preferred) && formats.includes(preferred)) {
+    // Wait, so the title and author can be typed before converting.
+    select.value = preferred;
     showTitle();
-    row.setStatus('Type the book title (optional), then press Convert.');
+    row.setStatus('Type a title and author (optional), then press Convert.');
   } else if (preferred && formats.includes(preferred)) {
     select.value = preferred;
     start();

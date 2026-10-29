@@ -111,6 +111,14 @@ export function audiobookTags(title = '', fallback = 'audiobook', author = '') {
   };
 }
 
+// Title and artist tags for plain audio output (the title also goes in as the album, so players group it).
+function audioTags(title = '', author = '') {
+  const name = title.trim();
+  const by = author.trim();
+  return [...(name ? ['-metadata', `title=${name}`, '-metadata', `album=${name}`] : []),
+    ...(by ? ['-metadata', `artist=${by}`, '-metadata', `album_artist=${by}`] : [])];
+}
+
 function convertMedia(file, to, progress, { title = '', author = '' } = {}) {
   return ffmpegJob(file, progress, async (job) => {
     const { duration, video, audio } = job.info;
@@ -120,7 +128,7 @@ function convertMedia(file, to, progress, { title = '', author = '' } = {}) {
 
     if (AUDIO_ARGS[to]) {
       if (!audio) throw new Error('This file has no sound track to convert.');
-      const blob = await job.encode(['-i', job.input, '-map', '0:a:0', ...AUDIO_ARGS[to], ...(book?.meta ?? [])], to, MIME[to], opts);
+      const blob = await job.encode(['-i', job.input, '-map', '0:a:0', ...AUDIO_ARGS[to], ...(book?.meta ?? audioTags(title, author))], to, MIME[to], opts);
       return { outputs: [{ blob, name }], note: video ? 'Sound track only — the picture was dropped.' : '' };
     }
 
