@@ -220,14 +220,14 @@ function compressFile(file, row = makeRow(file)) {
 
 // ---------- convert ----------
 
-function convertFile(file, row = makeRow(file)) {
+function convertFile(file, row = makeRow(file), lastTo = '') {
   const formats = targetsFor(file);
   if (!formats.length) {
     row.setStatus('No conversions for this file type yet. Images, videos, audio and PDFs can be converted.', 'err');
     return;
   }
 
-  row.setRedo(() => convertFile(file, row));
+  row.setRedo(() => convertFile(file, row, select.value));
   const picker = row.li.querySelector('.picker');
   picker.hidden = false;
   picker.innerHTML = '<span>Convert to</span> <select></select> <button type="button">Convert</button>';
@@ -251,7 +251,8 @@ function convertFile(file, row = makeRow(file)) {
   };
   button.addEventListener('click', start);
 
-  const preferred = convertTo.value;
+  // On a redo, use the format chosen now; if none is chosen, repeat the last one.
+  const preferred = convertTo.value || lastTo;
   if (preferred && formats.includes(preferred)) {
     select.value = preferred;
     start();
