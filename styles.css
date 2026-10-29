@@ -419,6 +419,7 @@ button:disabled { opacity: .4; cursor: default; }
 .results .picker select { min-height: 34px; font-size: 15px; background-color: var(--card); }
 .results .picker .book-title { min-height: 34px; font-size: 15px; flex: 1 1 200px; min-width: 0; padding: 0 10px; color: var(--text); background-color: var(--card); border: 1px solid var(--fill-2); border-radius: 8px; }
 .results .picker .book-title[hidden] { display: none; }
+.results .picker .book-author { flex-basis: 160px; }
 .results .picker .book-title:disabled { opacity: .5; }
 .results .status { color: var(--muted); font-size: 15px; margin-top: 2px; }
 .results .status.ok { color: var(--ok); }

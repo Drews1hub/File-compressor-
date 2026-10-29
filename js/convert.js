@@ -111,10 +111,10 @@ export function audiobookTags(title = '', fallback = 'audiobook', author = '') {
   };
 }
 
-function convertMedia(file, to, progress, { title = '' } = {}) {
+function convertMedia(file, to, progress, { title = '', author = '' } = {}) {
   return ffmpegJob(file, progress, async (job) => {
     const { duration, video, audio } = job.info;
-    const book = to === 'm4b' ? audiobookTags(title, baseName(file.name)) : null;
+    const book = to === 'm4b' ? audiobookTags(title, baseName(file.name), author) : null;
     const name = book ? book.file : `${baseName(file.name)}.${to}`;
     const opts = { duration, label: `Converting to ${FORMAT_LABELS[to]}` };
 
