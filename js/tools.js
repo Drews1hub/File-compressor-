@@ -2,6 +2,7 @@
 import { ext, baseName, fmt, fmtDuration, kindOf, canvasToBlob, makeCanvas, loadScript, tick, VIDEO_EXT, AUDIO_EXT } from './util.js';
 import { decodeImage, canEncode } from './images.js';
 import { ffmpegJob } from './engine.js';
+import { audiobookTags } from './convert.js';
 
 let pdfLibReady = null;
 const loadPdfLib = () => {
@@ -109,14 +110,7 @@ async function copyJoin(job, files, durations, total, book) {
 // so the book is a single file that can still be navigated by disc and track.
 // A single file keeps whatever chapters it already has.
 export function joinAudiobook(files, progress, { title = '' } = {}) {
-  // The title names the file and is stored in the book as its title and album, which is what iTunes lists it under.
-  const name = title.trim();
-  const book = {
-    file: `${name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120) || 'audiobook'}.m4b`,
-    // Flagged as an audiobook (media type 2, M4B file type) so iTunes lists it under Audiobooks, with chapter navigation.
-    meta: [...(name ? ['-metadata', `title=${name}`, '-metadata', `album=${name}`] : []),
-      '-metadata', 'media_type=2', '-metadata', 'genre=Audiobook', '-brand', 'M4B '],
-  };
+  const book = audiobookTags(title);
   return ffmpegJob(files, progress, async (job) => {
     const n = files.length;
     const durations = [];
