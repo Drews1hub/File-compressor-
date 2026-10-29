@@ -76,13 +76,13 @@ function parseInfo(text) {
   const d = /Duration: (\d+):(\d+):([\d.]+)/.exec(text);
   const v = /Stream #\S+.*?: Video: (\w+).*?, (\d{2,5})x(\d{2,5})/.exec(text);
   const fps = /, ([\d.]+) fps/.exec(text);
-  const a = /Stream #\S+.*?: Audio: (\w+)/.exec(text);
+  const a = /Stream #\S+.*?: Audio: (\w+).*?, (\d+) Hz, (\w+)/.exec(text);
   // Cover art in music files shows up as a one-frame video stream.
   const isCover = v && /\(attached pic\)/.test(text.split('\n').find((l) => l.includes(v[0])) ?? '');
   return {
     duration: d ? toSeconds(d[1], d[2], d[3]) : 0,
     video: v && !isCover ? { codec: v[1], width: Number(v[2]), height: Number(v[3]), fps: fps ? Number(fps[1]) : 0 } : null,
-    audio: a ? { codec: a[1] } : null,
+    audio: a ? { codec: a[1], rate: a[2] ? Number(a[2]) : 0, channels: a[3] ?? '' } : null,
   };
 }
 

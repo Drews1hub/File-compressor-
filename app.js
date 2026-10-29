@@ -472,8 +472,9 @@ $('#tool-make').addEventListener('click', () => {
   renderToolList();
   const total = files.reduce((s, f) => s + f.size, 0);
   if (tool === 'join-audio') {
-    const row = makeRow({ name: 'audiobook.m4b', size: total });
-    enqueue(row, (progress) => joinAudiobook(files, progress));
+    const title = $('#book-title').value;
+    const row = makeRow({ name: `${title.trim() || 'audiobook'}.m4b`, size: total });
+    enqueue(row, (progress) => joinAudiobook(files, progress, { title }));
   } else if (tool === 'merge-pdf') {
     const row = makeRow({ name: 'merged.pdf', size: total });
     enqueue(row, async (progress) => {
