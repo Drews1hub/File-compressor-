@@ -256,6 +256,16 @@
       </div>
     </section>
 
+    <div id="overall" class="overall" role="progressbar" aria-label="Overall progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
+      <div class="ring">
+        <svg viewBox="0 0 44 44" aria-hidden="true">
+          <circle class="ring-bg" cx="22" cy="22" r="19"/>
+          <circle class="ring-fg" cx="22" cy="22" r="19"/>
+        </svg>
+        <span class="pct">0%</span>
+      </div>
+      <span class="overall-label"></span>
+    </div>
     <div id="bulk" class="bulk" hidden>
       <button type="button" id="save-files" class="primary">Save all files</button>
       <button type="button" id="download-all">Download all as ZIP</button>

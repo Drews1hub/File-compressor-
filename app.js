@@ -79,6 +79,12 @@ let running = null;
 let lastQueued = null;
 
 function enqueue(row, run) {
+  // A new batch starts when nothing from the last one is still waiting or working.
+  if ([...batch].every((r) => r.finished || !r.li.isConnected)) batch.clear();
+  row.frac = 0;
+  row.finished = false;
+  batch.add(row);
+  updateOverall();
   // A fresh ticket per job, so a cancelled job that's still queued can't run after the row is restarted.
   const ticket = {};
   row.ticket = ticket;
@@ -98,6 +104,29 @@ function enqueue(row, run) {
       if (lastQueued === row) lastQueued = null;
     }
   });
+}
+
+// ---------- overall progress ring ----------
+
+// Every row queued since the list was last idle; the ring shows how far along they are together.
+const batch = new Set();
+const RING = 2 * Math.PI * 19;
+
+function updateOverall() {
+  const rows = [...batch].filter((r) => r.li.isConnected);
+  const box = $('#overall');
+  box.hidden = !rows.length;
+  if (!rows.length) return;
+  const done = rows.filter((r) => r.finished).length;
+  const frac = rows.reduce((sum, r) => sum + (r.finished ? 1 : Math.min(r.frac, 0.99)), 0) / rows.length;
+  const pct = done === rows.length ? 100 : Math.min(99, Math.floor(frac * 100));
+  box.classList.toggle('done', pct === 100);
+  box.setAttribute('aria-valuenow', pct);
+  box.querySelector('.ring-fg').style.strokeDashoffset = RING * (1 - pct / 100);
+  box.querySelector('.pct').textContent = `${pct}%`;
+  box.querySelector('.overall-label').textContent = pct === 100
+    ? (rows.length === 1 ? 'All done' : `All ${rows.length} files done`)
+    : `${done} of ${rows.length} file${rows.length === 1 ? '' : 's'} done`;
 }
 
 // ---------- results ----------
@@ -148,7 +177,12 @@ function makeRow(file) {
     setStatus(msg, cls = '') { status.textContent = msg; status.className = `status ${cls}`; },
     progress(msg, frac) {
       status.textContent = msg;
-      if (frac != null) { bar.hidden = false; bar.value = frac; }
+      if (frac != null) {
+        bar.hidden = false;
+        bar.value = frac;
+        // The one-time engine download has its own 0-100%, which isn't progress on the file.
+        if (!/^Downloading/.test(msg)) { row.frac = frac; updateOverall(); }
+      }
     },
     setNote(text) { note.textContent = text || ''; note.hidden = !text; },
     addDownloads(outputs) {
@@ -187,6 +221,8 @@ function makeRow(file) {
         bar.hidden = true;
         cancelBtn.hidden = true;
         delete li.dataset.busy;
+        row.finished = true;
+        updateOverall();
       }
     },
   };
@@ -204,6 +240,8 @@ function makeRow(file) {
     } else {
       row.setStatus('Cancelled.', 'err');
       delete li.dataset.busy;
+      row.finished = true;
+      updateOverall();
       li.querySelectorAll('.picker select, .picker button').forEach((el) => { el.disabled = false; });
     }
   };
@@ -215,6 +253,7 @@ function makeRow(file) {
     li.remove();
     allOutputs = allOutputs.filter((o) => o.li !== li);
     updateBulk();
+    updateOverall();
   });
   return row;
 }
@@ -521,6 +560,7 @@ $('#clear-results').addEventListener('click', () => {
   }
   allOutputs = allOutputs.filter((o) => o.li.isConnected);
   updateBulk();
+  updateOverall();
 });
 
 // ---------- wiring ----------

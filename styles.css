@@ -393,6 +393,21 @@ button:disabled { opacity: .4; cursor: default; }
 .bulk .check { display: flex; align-items: center; gap: 8px; min-height: var(--tap); font-size: 15px; color: var(--muted); }
 .bulk + .results { margin-top: 16px; }
 
+/* ---------- overall progress ring ---------- */
+
+.overall { display: flex; align-items: center; gap: 16px; margin-top: 32px; }
+.overall[hidden] { display: none; }
+.overall + .bulk { margin-top: 16px; }
+.ring { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 4; }
+.ring-bg { stroke: var(--fill-2); }
+.ring-fg { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 119.38; stroke-dashoffset: 119.38; transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease; }
+.overall.done .ring-fg { stroke: var(--ok); }
+.ring .pct { position: absolute; inset: 0; display: grid; place-items: center; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.overall-label { color: var(--muted); font-size: 15px; }
+@media (prefers-reduced-motion: reduce) { .ring-fg { transition: none; } }
+
 /* ---------- results ---------- */
 
 .results { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 10px; }
