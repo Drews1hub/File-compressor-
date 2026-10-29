@@ -69,6 +69,42 @@ export function trimMedia(file, { start, end, exact }, progress) {
 // Chapter titles in FFMETADATA: these characters must be escaped with a backslash.
 const escapeMeta = (s) => s.replace(/[=;#\\\n]/g, '\\$&');
 
+// Chapter metadata for the joined book: one chapter per file when there are several, none for a single file
+// (its own chapters are kept). `index` is the input number the metadata file gets.
+async function chapterInput(job, files, durations, index) {
+  if (files.length < 2) return { extra: [], map: [] };
+  let start = 0;
+  const chapters = files.map((file, i) => {
+    const end = start + Math.round(durations[i] * 1000);
+    const chapter = `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${start}\nEND=${end}\ntitle=${escapeMeta(baseName(file.name))}\n`;
+    start = end;
+    return chapter;
+  });
+  const meta = await job.writeText(`;FFMETADATA1\n${chapters.join('')}`, 'txt');
+  return { extra: ['-i', meta], map: ['-map_chapters', String(index)] };
+}
+
+// Copies the AAC audio of each track straight into the book: no re-encoding, so no quality loss.
+async function copyJoin(job, files, durations, total) {
+  const n = files.length;
+  if (n === 1) {
+    const blob = await job.encode(['-i', job.input, '-map', '0:a:0', '-c', 'copy', '-map_chapters', '0', '-f', 'ipod'],
+      'm4b', 'audio/mp4', { duration: total, label: 'Copying' });
+    return { outputs: [{ blob, name: 'audiobook.m4b' }], summary: `Done — one audiobook, ${fmtDuration(total)} long.`, note: 'Audio copied as-is, so quality is unchanged.' };
+  }
+  // The concat demuxer reads a list of files; quotes inside a path are escaped the way ffmpeg expects.
+  const list = await job.writeText(job.inputs.map((path) => `file '${path.replace(/'/g, "'\\''")}'`).join('\n') + '\n', 'txt');
+  const chapters = await chapterInput(job, files, durations, 1);
+  const blob = await job.encode(['-f', 'concat', '-safe', '0', '-i', list, ...chapters.extra,
+    '-map', '0:a:0', ...chapters.map, '-c', 'copy', '-f', 'ipod'],
+  'm4b', 'audio/mp4', { duration: total, label: 'Joining' });
+  return {
+    outputs: [{ blob, name: 'audiobook.m4b' }],
+    summary: `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, one chapter per file.`,
+    note: 'Audio copied as-is, so quality is unchanged.',
+  };
+}
+
 // Joins the tracks, in the order given, into one M4B. With several files each one becomes a chapter,
 // so the book is a single file that can still be navigated by disc and track.
 // A single file keeps whatever chapters it already has.
@@ -76,28 +112,24 @@ export function joinAudiobook(files, progress) {
   return ffmpegJob(files, progress, async (job) => {
     const n = files.length;
     const durations = [];
+    const infos = [];
     for (let i = 0; i < n; i++) {
       progress?.(`Reading ${files[i].name} (${i + 1} of ${n})…`, i / n);
-      const { duration, audio } = await job.probe(job.inputs[i]);
-      if (!audio) throw new Error(`${files[i].name} has no sound track, so it can't be joined.`);
-      durations.push(duration);
+      const info = await job.probe(job.inputs[i]);
+      if (!info.audio) throw new Error(`${files[i].name} has no sound track, so it can't be joined.`);
+      infos.push(info.audio);
+      durations.push(info.duration);
     }
     const total = durations.reduce((s, d) => s + d, 0);
 
-    // Chapter times in milliseconds, so each file starts where the previous one ended.
-    const chapterArgs = [];
-    const extraInputs = [];
-    if (n > 1) {
-      let start = 0;
-      const chapters = files.map((file, i) => {
-        const end = start + Math.round(durations[i] * 1000);
-        const chapter = `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${start}\nEND=${end}\ntitle=${escapeMeta(baseName(file.name))}\n`;
-        start = end;
-        return chapter;
-      });
-      const meta = await job.writeText(`;FFMETADATA1\n${chapters.join('')}`, 'txt');
-      extraInputs.push('-i', meta);
-      chapterArgs.push('-map_chapters', String(n));
+    // If every track is already AAC in the same format, the audio can be copied without re-encoding.
+    // That is lossless and takes seconds. Anything else is re-encoded.
+    const first = infos[0];
+    const sameFormat = infos.every((a) => a.codec === 'aac' && a.rate === first.rate && a.channels === first.channels);
+    if (sameFormat) {
+      try {
+        return await copyJoin(job, files, durations, total);
+      } catch { /* fall back to re-encoding */ }
     }
 
     // Every track is resampled to one format, so files with different sample rates or mono/stereo can be joined.
@@ -105,15 +137,16 @@ export function joinAudiobook(files, progress) {
     const chains = job.inputs.map((_, i) =>
       `[${i}:a:0]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a${i}]`);
     const concat = `${job.inputs.map((_, i) => `[a${i}]`).join('')}concat=n=${n}:v=0:a=1[out]`;
-    const blob = await job.encode([...inputs, ...extraInputs, '-filter_complex', [...chains, concat].join(';'),
-      '-map', '[out]', ...chapterArgs, '-c:a', 'aac', '-b:a', '128k', '-f', 'ipod'],
+    const chapters = await chapterInput(job, files, durations, n);
+    const blob = await job.encode([...inputs, ...chapters.extra, '-filter_complex', [...chains, concat].join(';'),
+      '-map', '[out]', ...chapters.map, '-c:a', 'aac', '-b:a', '192k', '-f', 'ipod'],
     'm4b', 'audio/mp4', { duration: total, label: 'Joining' });
     return {
       outputs: [{ blob, name: 'audiobook.m4b' }],
       summary: n > 1
         ? `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, one chapter per file.`
         : `Done — one audiobook, ${fmtDuration(total)} long.`,
-      note: 'Re-encoded to AAC 128k so the tracks join cleanly.',
+      note: 'Re-encoded to AAC 192k so the tracks join cleanly.',
     };
   });
 }
