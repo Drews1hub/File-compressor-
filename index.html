@@ -11,13 +11,12 @@
   <script src="vendor/jspdf.umd.min.js"></script>
   <script src="vendor/fflate.min.js"></script>
   <script type="module" src="app.js?v=20261030-chapter-resets"></script>
-  <link rel="stylesheet" href="faq.css?v=20261030">
 </head>
 <body>
   <nav class="topbar">
     <div class="topbar-inner">
       <a class="wordmark brand" href="#" aria-label="FileFit home"><span class="brand-icon" aria-hidden="true">F</span>FileFit</a>
-      <a href="#faq" class="help-link">FAQs</a>
+      <a href="faq.html" class="help-link">FAQs</a>
       <a href="blog/" class="help-link">Blog</a>
       <span class="topbar-note"><span class="privacy-dot" aria-hidden="true"></span> Private by design</span>
     </div>
@@ -360,23 +359,6 @@
     </details>
   </main>
 
-
-  <section class="faq-section" id="faq" aria-labelledby="faq-heading">
-    <div class="faq-heading"><p class="faq-eyebrow">A LITTLE HELP WITH YOUR FILES</p><h2 id="faq-heading">Frequently asked questions</h2><p>Quick answers before you compress, convert, or share.</p></div>
-    <div class="faq-list">
-      <details class="faq-item"><summary>Is FileFit free to use?</summary><div class="faq-answer"><p>Yes. You can use FileFit’s compression, conversion, and file tools without creating an account.</p></div></details>
-      <details class="faq-item"><summary>Are my files uploaded to a server?</summary><div class="faq-answer"><p>FileFit processes your files in your browser on your device, rather than uploading them for processing. Some tools need to download their processing engine the first time you use them, so an internet connection may still be needed.</p></div></details>
-      <details class="faq-item"><summary>Which file types can I compress?</summary><div class="faq-answer"><p>The Compress tab handles common images, videos, audio files, PDFs, and Office documents (.docx, .pptx, and .xlsx). Text files can be split into smaller parts. Other formats may be bundled into a ZIP instead. Open “How compression works for each file type” above for the details.</p></div></details>
-      <details class="faq-item"><summary>How do I make a file small enough for email?</summary><div class="faq-answer"><p>Choose Compress, select Fit a size, and enter a target below your email service’s attachment limit. The target applies to each file separately, so check the combined size if you are attaching several files. Open the downloaded results to check their quality before sending.</p></div></details>
-      <details class="faq-item"><summary>Will compression reduce quality?</summary><div class="faq-answer"><p>It can. Images, video, and audio may lose detail as quality or resolution is reduced. Start with Light under Pick a strength, or use a larger target, and compare the result with your original. ZIP archives preserve the files inside them exactly.</p></div></details>
-      <details class="faq-item"><summary>Will text in a compressed PDF still be selectable?</summary><div class="faq-answer"><p>When FileFit compresses a PDF, it turns each page into an image and builds a new PDF. Text in that result is no longer selectable. Keep the original if you need searchable or selectable text. The PDF merge and split tools preserve existing text instead.</p></div></details>
-      <details class="faq-item"><summary>Why did my file stay the same size?</summary><div class="faq-answer"><p>In Fit a size mode, files already below your target are returned unchanged. Already-compressed files may also have little room to shrink. Try a lower target or a stronger setting if the quality tradeoff is acceptable; some settings return the original when the result would be larger.</p></div></details>
-      <details class="faq-item"><summary>Why is a large video taking a long time?</summary><div class="faq-answer"><p>Video compression runs on your device’s processor, and the first use also downloads the video engine. Processing time depends on the clip, settings, and device. Keep the tab open, try a shorter clip, or lower the maximum video resolution in More options.</p></div></details>
-      <details class="faq-item"><summary>Does FileFit overwrite my original files?</summary><div class="faq-answer"><p>No. FileFit creates results for you to download; it does not overwrite the original files you selected. Keep your originals and check the downloaded copies before deleting anything.</p></div></details>
-      <details class="faq-item"><summary>What is the difference between Compress, Convert, and Zip?</summary><div class="faq-answer"><p>Compress aims to reduce file size. Convert changes a file’s format and does not necessarily make it smaller. Zip bundles files or folders into an archive while preserving their contents, but already-compressed files may barely shrink.</p></div></details>
-    </div>
-    <p class="faq-more">Need a step-by-step guide? <a href="blog/reduce-file-size-email-attachments/">Read how to reduce file size for email attachments</a>.</p>
-  </section>
 
   <footer class="site-footer">
     <p>FileFit · A little less file. A lot more possibility.</p>
