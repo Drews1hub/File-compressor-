@@ -1,3 +1,4 @@
+import { unpack } from './unpack.js';
 import { ext, baseName, fmt, fmtDuration, tick, canvasToBlob, drawToCanvas } from './util.js';
 import { decodeImage, encodeImageUnder, pickImageType, typeExt, typeLabel } from './images.js';
 import { withPdf, renderPage } from './pdf.js';
@@ -249,7 +250,7 @@ async function rebuildOffice(entries, maxDim, quality, progress) {
 }
 
 async function compressOffice(file, opts, progress) {
-  const entries = fflate.unzipSync(new Uint8Array(await file.arrayBuffer()));
+  const entries = await unpack(file);
   if (!Object.keys(entries).some((n) => /\/media\//i.test(n))) return compressOther(file, opts, progress);
   const result = (zipped, maxDim) => ({
     blob: new Blob([zipped], { type: file.type }),

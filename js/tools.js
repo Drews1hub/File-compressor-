@@ -1,3 +1,4 @@
+import { unpack, MAX_ARCHIVE_BYTES } from './unpack.js';
 // The "File tools" tab: trim, merge/split PDFs, photos → PDF, rotate/resize photos, open archives.
 import { ext, baseName, fmt, fmtDuration, kindOf, canvasToBlob, makeCanvas, loadScript, tick, VIDEO_EXT, AUDIO_EXT } from './util.js';
 import { decodeImage, canEncode } from './images.js';
@@ -472,36 +473,43 @@ export async function editPhoto(file, { rotate, flip, resize }, progress) {
 
 // ---------- archives ----------
 
-function readTar(data) {
+export function readTar(data) {
   const files = [];
   const dec = new TextDecoder();
   const str = (o, n) => dec.decode(data.subarray(o, o + n)).replace(/\0.*$/s, '');
   let longName = null;
+  let entryCount = 0;
   for (let off = 0; off + 512 <= data.length;) {
     if (data[off] === 0) break; // end-of-archive blocks
     let name = str(off, 100);
     const prefix = str(off + 345, 155);
     if (prefix) name = `${prefix}/${name}`;
-    const size = parseInt(str(off + 124, 12).trim() || '0', 8);
+    const sizeText = str(off + 124, 12).trim() || '0';
+    if (!/^[0-7]+$/.test(sizeText)) throw new Error('Invalid TAR entry size.');
+    const size = Number.parseInt(sizeText, 8);
+    const next = off + 512 + Math.ceil(size / 512) * 512;
+    if (!Number.isSafeInteger(size) || next <= off || next > data.length) throw new Error('Truncated or invalid TAR entry.');
+    if (++entryCount > 10000) throw new Error('Archive exceeds the 10,000 entry safety limit.');
     const type = String.fromCharCode(data[off + 156]);
     const body = data.subarray(off + 512, off + 512 + size);
     if (type === 'L') longName = dec.decode(body).replace(/\0.*$/s, ''); // GNU long file name
     else if (type === '0' || type === '\0') { files.push({ path: longName ?? name, data: body }); longName = null; }
-    off += 512 + Math.ceil(size / 512) * 512;
+    off = next;
   }
   return files;
 }
 
 export async function extractArchive(file, progress) {
   progress?.('Opening…');
+  if (file.size > MAX_ARCHIVE_BYTES) throw new Error('Archive exceeds the 256 MiB safety limit.');
   let data = new Uint8Array(await file.arrayBuffer());
   let entries;
   try {
     if (data[0] === 0x50 && data[1] === 0x4b) {
-      const unzipped = await new Promise((res, rej) => fflate.unzip(data, (err, out) => (err ? rej(err) : res(out))));
+      const unzipped = await unpack(file);
       entries = Object.entries(unzipped).filter(([p]) => !p.endsWith('/') && !p.startsWith('__MACOSX/')).map(([path, d]) => ({ path, data: d }));
     } else {
-      if (data[0] === 0x1f && data[1] === 0x8b) data = await new Promise((res, rej) => fflate.gunzip(data, (err, out) => (err ? rej(err) : res(out))));
+      if (data[0] === 0x1f && data[1] === 0x8b) data = (await unpack(file, 'gzip')).data;
       const isTar = data.length >= 512 && new TextDecoder().decode(data.subarray(257, 262)) === 'ustar';
       entries = isTar ? readTar(data) : [{ path: file.name.replace(/\.gz$/i, '') || 'file', data }];
     }

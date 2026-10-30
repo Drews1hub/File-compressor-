@@ -1,3 +1,4 @@
+import { cancelUnpack } from './js/unpack.js';
 import { MB, fmt, kindOf } from './js/util.js';
 import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
@@ -257,6 +258,7 @@ function makeRow(file) {
       row.setStatus('Cancelling…', 'err');
       abort(new Error('Cancelled.'));
       cancelEngine();
+      cancelUnpack();
     } else {
       row.setStatus('Cancelled.', 'err');
       delete li.dataset.busy;

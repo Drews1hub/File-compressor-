@@ -96,3 +96,14 @@ Also vendored, each loaded only when a matching file is converted:
 [occt-import-js](https://github.com/kovacsv/occt-import-js) with OpenCascade (LGPL-2.1, 7.6 MB, for STEP / IGES), and
 [libredwg-web](https://github.com/mlightcad/libredwg-web) with LibreDWG (GPL-3.0, 10.8 MB, for DWG).
 License texts are in `vendor/LICENSE-*`.
+
+### File safety
+
+Archive, EPUB and Office unpacking runs in a separate worker with a 30-second timeout,
+a 256 MiB input/expanded-data limit and a 10,000-entry limit for ZIP/TAR archives.
+Cancel terminates active unpacking workers. Malformed TAR entry sizes are rejected.
+E-book HTML and EPUB exports preserve basic text, tables, links and raster images;
+scripts, event handlers, embedded frames, SVG images and remote images are removed.
+These safeguards do not turn the converter into a malware scanner.
+
+Security regression checks: `node tests/security.cjs`.
