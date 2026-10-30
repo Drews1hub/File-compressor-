@@ -4,7 +4,7 @@ import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
-import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js';
+import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261030-chapter-resets';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;
