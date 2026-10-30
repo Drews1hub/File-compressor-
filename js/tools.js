@@ -74,15 +74,36 @@ const escapeMeta = (s) => s.replace(/[=;#\\\n]/g, '\\$&');
 
 // Chapter metadata for the joined book: one chapter per file when there are several, none for a single file
 // (its own chapters are kept). `index` is the input number the metadata file gets.
+// Detect a new chapter when the second number in 001-01 Track 1 resets to 1.
+function trackInChapter(name) {
+  const label = baseName(name);
+  const pair = /^\d+[-_ ]+0*(\d+)(?=\D|$)/.exec(label);
+  const track = /\btrack[ _-]*0*(\d+)\b/i.exec(label);
+  return pair ? Number(pair[1]) : track ? Number(track[1]) : null;
+}
+
 async function chapterInput(job, files, durations, index, book) {
   if (files.length < 2) return { extra: [], map: [] };
-  let start = 0;
-  const chapters = files.map((file, i) => {
+  const resets = book.chapterNames === 'resets';
+  const nums = resets ? files.map(file => trackInChapter(file.name)) : [];
+  if (resets && (nums[0] !== 1 || nums.some(n => !Number.isInteger(n) || n < 1))) {
+    throw new Error('To detect chapter resets, filenames must follow 001-01 Track 1 and begin at track 1. Otherwise choose numbered tracks or original filenames.');
+  }
+  let start = 0, chapterStart = 0, chapterCount = 0;
+  const chapters = [];
+  const add = (from, to, title) => {
+    chapters.push(`[CHAPTER]\nTIMEBASE=1/1000\nSTART=${from}\nEND=${to}\ntitle=${escapeMeta(title)}\n`);
+  };
+  files.forEach((file, i) => {
+    if (resets && i > 0 && nums[i] === 1) {
+      add(chapterStart, start, `Chapter ${++chapterCount}`);
+      chapterStart = start;
+    }
     const end = start + Math.round(durations[i] * 1000);
-    const chapter = `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${start}\nEND=${end}\ntitle=${escapeMeta(book.chapterNames === 'filename' ? baseName(file.name) : `Track ${i + 1}`)}\n`;
+    if (!resets) add(start, end, book.chapterNames === 'filename' ? baseName(file.name) : `Track ${i + 1}`);
     start = end;
-    return chapter;
   });
+  if (resets) add(chapterStart, start, `Chapter ${++chapterCount}`);
   const meta = await job.writeText(`;FFMETADATA1\n${chapters.join('')}`, 'txt');
   return { extra: ['-i', meta], map: ['-map_chapters', String(index)] };
 }
@@ -288,7 +309,7 @@ export async function splitAudiobook(file, { title = '', author = '' }, progress
 // Joins the tracks, in the order given, into one M4B. With several files each one becomes a chapter,
 // so the book is a single file that can still be navigated by disc and track.
 // A single file keeps whatever chapters it already has.
-export async function joinAudiobook(files, progress, { title = '', author = '', separate = false, chapterNames = 'numbered' } = {}) {
+export async function joinAudiobook(files, progress, { title = '', author = '', separate = false, chapterNames = 'resets' } = {}) {
   if (separate) return separateTracks(files, progress, title.trim(), author.trim());
   const book = audiobookTags(title, 'audiobook', author);
   book.chapterNames = chapterNames;
