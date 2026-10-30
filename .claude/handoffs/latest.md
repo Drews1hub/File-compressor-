@@ -1,26 +1,30 @@
-# Handoff: join CDs into one audiobook (2026-10-29)
+# Handoff: Redo button (2026-10-30)
 
-**Goal:** FileFit is a free in-browser file compressor and converter (nothing is uploaded). The user wants to combine the tracks from several audiobook CDs into one audiobook, so they don't have to switch discs. Dropping the files in should produce a single M4B that plays straight through from the first track to the last.
+**Goal:** FileFit is a free in-browser file compressor, converter and toolkit (nothing is uploaded). The user wants to change output settings and press Redo on a finished row, instead of deleting the file and dropping it in again.
 
-**Done:** Nothing in code yet. This session only set the goal.
+**Done:**
+- Redo is live on the site: https://drews1hub.github.io/File-compressor-/ . Checked in a real browser on 2026-10-30: the row shows "Redo", and "Redo all" shows in the bar.
+- Commit `e30165b` on `claude/wonderful-hypatia-9g13bo` (the live branch). It adds `app.js`, `index.html` and `styles.css` changes.
+  - Per row: "Redo" re-runs the file with the current settings and replaces its old downloads.
+  - "Redo all" re-runs every finished row in list order.
+  - Compress uses the current target, strength, percent, format, size, resolution and mute settings.
+  - Convert uses the current "Convert to" format. If it's set to "Choose for each file", it repeats the last format.
+  - Single-file Tools (trim, split PDF, photo edit, open archive) use the current settings.
+  - Redo is not offered for merge PDFs, photos to PDF, Zip or audiobook join, which build one output from a list that clears on press.
+- Tested in a headless browser before pushing: Compress redo changed 18 parts to 4 after the target changed, Convert redo switched JPG to WebP, and Redo all ran with no page errors.
 
 **Decisions:**
-- The output is one M4B, with the tracks joined in the order the user sets. Nothing is split or re-chaptered unless the user asks.
-- Earlier M4B work is already on the branch (`c083d35`, `js/convert.js` `m4b` args with `-f ipod`). Reuse it, don't rebuild it.
+- The live branch is `claude/wonderful-hypatia-9g13bo`. GitHub Pages serves it. Do not push to it without the user's explicit permission.
+- Redo was rebuilt on top of the live branch, not merged. The old Redo branch `claude/nice-ptolemy-gx39vn` is based on the older version and is not live. Leave it alone.
+- Do not include model names in commits or PR text.
 
 **Open:**
-- Design questions to ask the user before coding:
-  1. How should the files be picked? Options: a "Join into one audiobook" action on a multi-file selection, or a checkbox per row with a join button.
-  2. Track order: by file name (CD1 track 01, CD1 track 02, CD2 track 01...), or by the order dropped? Name order is the likely default, and the user can reorder.
-  3. Chapter markers: keep one chapter per source file, or none?
-- Likely approach: ffmpeg concat (the concat demuxer or the concat filter) with the same AAC 128k args, run in the existing ffmpeg.wasm engine (`js/engine.js`). Put the join logic in `js/convert.js` and the UI in `app.js`.
-- Carried over from the previous session, still open:
-  - MP3 instead of M4B: `app.js` `convertFile` (around line 320) auto-starts conversion using the top "Convert to" setting saved in localStorage. Options: (A) wait for the user to press Convert per row (recommended), or (B) auto-start only for a format picked during the current visit.
-  - Apple Books on High Sierra only takes EPUB and PDF, not M4B. This can't be solved in FileFit. Suggest QuickTime or an iPhone audiobook app.
-  - Dropping many WMA files at once can leave the oldest row stuck. Needs status text and console errors from the user.
+- Video, audio and OCR conversions are not browser-tested for Redo. They need the large converter download.
+- Redo on the single-file Tools is not browser-tested.
+- The user hasn't confirmed on their own device yet. A hard refresh may be needed to see the button.
+- Ideas from earlier, not started: multi-thread video (needs COOP/COEP), spreadsheet and subtitle conversion, DOCX to text, PDF compression that keeps text selectable.
 
 **Where things live:**
-- Repo: `/home/user/File-compressor-`, branch `claude/clever-edison-ad8mje`, pushed.
-- Convert logic: `js/convert.js` (`AUDIO_ARGS`, `TARGETS`, `convertMedia`). Row picker and auto-start: `app.js` (`convertFile`). Audio compress: `js/compress.js`. Engine: ffmpeg.wasm in `js/engine.js`, with the vendored build in `vendor/ffmpeg-core/`.
-- Previous handoff (M4B issue): `.claude/handoffs/2026-10-29-m4b-convert.md`.
-- Reference PDF: `docs/reference/best-online-file-converters-2026.pdf`.
+- Repo: `/home/user/File-compressor-`, local branch `redo-live`, tracking `claude/wonderful-hypatia-9g13bo`.
+- Redo code: `app.js` (`makeRow` → `setRedo`/`reset`, `compressFile`, `convertFile`, `runSingleTool`, `redo-all` listener), `index.html` (`#redo-all`), `styles.css` (`.redo`).
+- Older handoffs: `.claude/handoffs/2026-10-29-*.md`.
