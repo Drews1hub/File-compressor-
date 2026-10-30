@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How It Works - FileFit</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <meta name="description" content="How FileFit compresses each file type, and what the three size modes do.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a class="wordmark" href="./" style="color:inherit;text-decoration:none">FileFit</a>
+      <span class="topbar-note">Runs in your browser</span>
+    </div>
+  </nav>
+
+  <main class="page">
+    <p><a class="link-cta" href="./">Back to FileFit</a></p>
+    <h1>How compression works for each file type</h1>
+    <div class="help">
+      
+      <dl>
+        <dt>Images (JPG, PNG, WebP, GIF, BMP, HEIC, TIFF)</dt>
+        <dd>Re-encoded as JPEG (or WebP when the picture has see-through parts, so they stay see-through), lowering quality first
+          and then resolution. iPhone HEIC photos are supported. Location and camera details (EXIF/GPS) are removed along the way.</dd>
+        <dt>Video (MP4, MOV, MKV, WebM, AVI…)</dt>
+        <dd>Re-encoded as MP4 (H.264) at the bitrate that fits your target, dropping resolution (1080p → 720p → 480p…) when needed.
+          Compression runs on your computer's processor, so it takes a while — roughly as long as the video, often longer.</dd>
+        <dt>Audio (MP3, WAV, M4A, FLAC, OGG…)</dt>
+        <dd>Re-encoded as MP3 at the highest bitrate that fits.</dd>
+        <dt>PDF</dt>
+        <dd>Each page is turned into a compressed image and rebuilt into a new PDF.
+          Claude can still read it, but text is no longer selectable in the result.</dd>
+        <dt>Word, PowerPoint, Excel (.docx, .pptx, .xlsx)</dt>
+        <dd>Embedded pictures are downsized and recompressed; your text and layout stay the same.</dd>
+        <dt>Text, CSV, JSON, Markdown, code</dt>
+        <dd>Split into several parts that each fit the limit. CSV/TSV parts keep the header row.</dd>
+        <dt>E-books and CAD files (EPUB, MOBI, DXF, STEP…)</dt>
+        <dd>These are already compact, so Compress puts them in a ZIP. Use the Convert tab to change their format.</dd>
+        <dt>Anything else</dt>
+        <dd>Put into a ZIP at maximum compression. Claude may not open every archive, so use this as a last resort.</dd>
+      </dl>
+      <p><strong>Fit a size</strong> aims for the biggest file that's still under your limit. <strong>Pick a strength</strong> uses fixed
+        settings, so files of all sizes get the same treatment. <strong>Shrink by %</strong> makes each file at most that share of its current size (often smaller).</p>
+      <p>Files already under the target are passed through untouched.
+        Video and audio need a one-time 32 MB download of the converter engine, which your browser then keeps. Scans (OCR), STEP / IGES models and DWG drawings each download their own reader (3 to 11 MB) the first time you use them.</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>Everything happens on your device. Built with pdf.js, jsPDF, pdf-lib, fflate, heic2any and ffmpeg.wasm.</p>
+  </footer>
+</body>
+</html>
