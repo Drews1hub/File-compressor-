@@ -15,28 +15,22 @@
 <body>
   <nav class="topbar">
     <div class="topbar-inner">
-      <span class="wordmark">FileFit</span>
-      <span class="topbar-note">Runs in your browser</span>
+      <a class="wordmark brand" href="#" aria-label="FileFit home"><span class="brand-icon" aria-hidden="true">F</span>FileFit</a>
+      <span class="topbar-note"><span class="privacy-dot" aria-hidden="true"></span> Private by design</span>
     </div>
   </nav>
 
   <header class="hero">
-    <p class="eyebrow">Free File Compressor and Converter for Photos, Video, Audio and PDFs</p>
-    <h1 class="wordmark">FileFit</h1>
-    <p class="tagline">Shrink It Here. Keep It Yours</p>
-    <p class="lede">Everything runs in your browser. Your files never leave your device.</p>
-    <div class="cta-row">
-      <a class="link-cta" href="#app">Get Started</a>
-      <a class="link-cta" href="#help">How It Works</a>
-    </div>
-    <ul class="specs">
-      <li><strong>0</strong><span>Files sent to a server</span></li>
-      <li><strong>30 MB</strong><span>Default target, ready for Claude</span></li>
-      <li><strong>4</strong><span>Compress, Convert, Tools, Zip</span></li>
+    <p class="eyebrow">YOUR EVERYDAY FILE TOOLKIT</p>
+    <h1>Shrink it here.<br><span>Keep it yours.</span></h1>
+    <p class="lede">Smaller files. The format you need. All on your device.</p>
+    <ul class="benefits" aria-label="FileFit benefits">
+      <li>Files stay on your device</li><li>No account needed</li><li>Free to use</li>
     </ul>
   </header>
 
   <main id="app">
+    <div class="workspace-heading"><div><p class="eyebrow">LET’S MAKE IT FIT</p><h2>Your files, made ready.</h2></div><a href="#help" class="help-link">How it works</a></div>
     <div class="tabs" role="tablist">
       <button role="tab" id="tab-compress" aria-controls="panel-compress" aria-selected="true">Compress</button>
       <button role="tab" id="tab-convert" aria-controls="panel-convert" aria-selected="false">Convert</button>
@@ -59,9 +53,9 @@
             <select id="unit" aria-label="Unit"><option value="mb">MB</option><option value="kb">KB</option></select>
             <span>per file</span>
             <span class="presets">
-              <button type="button" data-mb="30" title="Claude upload limit">Claude 30</button>
-              <button type="button" data-mb="25" title="Gmail attachment limit">Email 25</button>
-              <button type="button" data-mb="10" title="Discord free upload limit">Discord 10</button>
+              <button type="button" data-mb="30" title="Set target to 30 MB">30 MB</button>
+              <button type="button" data-mb="25" title="Set target to 25 MB">25 MB</button>
+              <button type="button" data-mb="10" title="Set target to 10 MB">10 MB</button>
             </span>
           </div>
         </div>
@@ -112,12 +106,12 @@
           </div>
         </details>
       </div>
-      <label class="drop" data-mode="compress">
+      <div class="drop" data-mode="compress">
         <input type="file" multiple hidden>
-        <strong>Drop files to compress</strong>
-        <span>or click to choose</span>
-        <small>Photos (incl. iPhone HEIC) · Videos · Audio · PDFs · Word / PowerPoint / Excel · text &amp; CSV · e-books and CAD files · anything else gets zipped</small>
-      </label>
+        <strong>Big files. Small problem.</strong>
+        <button type="button" class="choose-files">Choose files</button><span class="drop-caption">or drag them here</span>
+        <small>Photos &amp; HEIC · Video · Audio · PDFs · Office documents<br>Plus text, e-books, CAD and more</small>
+      </div>
     </section>
 
     <section id="panel-convert" role="tabpanel" aria-labelledby="tab-convert" hidden>
@@ -162,21 +156,19 @@
           <p class="tool-hint">Saved in every audio file in the batch, so iTunes lists them as one book. Each file's own name becomes its track title, and the files are numbered in order. Type these before you drop the files, or press Redo afterwards.</p>
         </div>
       </div>
-      <label class="drop" data-mode="convert">
+      <div class="drop" data-mode="convert">
         <input type="file" multiple hidden>
         <strong>Drop files to convert</strong>
-        <span>or click to choose</span>
-        <small>Images ↔ JPG / PNG / WebP / GIF / PDF · Video ↔ MP4 / WebM / MOV / GIF · Video → MP3 · Audio ↔ MP3 / WAV / M4A / M4B / OGG / FLAC · PDF → JPG / PNG / text ·
-          Scans and PDFs → searchable PDF or text (OCR, English) · E-books: EPUB / MOBI / AZW3 / FB2 → EPUB / PDF / HTML / text, and text / PDF → EPUB ·
-          CAD: DWG / DXF → DXF / SVG / PNG / PDF, STEP / IGES / STL / OBJ → STL / OBJ / picture</small>
-      </label>
+        <button type="button" class="choose-files">Choose files</button><span class="drop-caption">or drag them here</span>
+        <small>Images · Video · Audio · PDFs · E-books · CAD<br>Choose a file to see its available formats.</small>
+      </div>
     </section>
 
     <section id="panel-tools" role="tabpanel" aria-labelledby="tab-tools" hidden>
       <div class="controls">
-        <label for="tool">Tool</label>
+        <h3 class="tools-title">What would you like to do?</h3>
         <div class="control-row">
-          <select id="tool">
+          <select id="tool" hidden aria-label="Selected tool">
             <option value="trim">Trim a video or audio clip</option>
             <option value="join-audio">Join audio tracks into one audiobook (M4B)</option>
             <option value="split-audio">Split an audiobook into tracks by its chapters</option>
@@ -186,6 +178,16 @@
             <option value="photo-edit">Rotate, flip or resize photos</option>
             <option value="extract">Open a ZIP or TAR.GZ</option>
           </select>
+        </div>
+        <div class="tool-grid" role="group" aria-label="Choose a file tool">
+          <button type="button" class="tool-card" data-tool-choice="trim" aria-pressed="false"><span class="tool-number" aria-hidden="true">01</span><strong>Trim media</strong><span>Keep the part you need</span></button>
+          <button type="button" class="tool-card" data-tool-choice="join-audio" aria-pressed="false"><span class="tool-number" aria-hidden="true">02</span><strong>Join audiobook</strong><span>Bring your tracks together</span></button>
+          <button type="button" class="tool-card" data-tool-choice="split-audio" aria-pressed="false"><span class="tool-number" aria-hidden="true">03</span><strong>Split audiobook</strong><span>Save chapters as tracks</span></button>
+          <button type="button" class="tool-card" data-tool-choice="merge-pdf" aria-pressed="false"><span class="tool-number" aria-hidden="true">04</span><strong>Merge PDFs</strong><span>One document, all your pages</span></button>
+          <button type="button" class="tool-card" data-tool-choice="split-pdf" aria-pressed="false"><span class="tool-number" aria-hidden="true">05</span><strong>Split PDF</strong><span>Pick pages or separate them</span></button>
+          <button type="button" class="tool-card" data-tool-choice="photos-pdf" aria-pressed="false"><span class="tool-number" aria-hidden="true">06</span><strong>Photos to PDF</strong><span>Turn pictures into a document</span></button>
+          <button type="button" class="tool-card" data-tool-choice="photo-edit" aria-pressed="false"><span class="tool-number" aria-hidden="true">07</span><strong>Edit photos</strong><span>Rotate, flip and resize</span></button>
+          <button type="button" class="tool-card" data-tool-choice="extract" aria-pressed="false"><span class="tool-number" aria-hidden="true">08</span><strong>Extract archive</strong><span>Open ZIP and TAR.GZ files</span></button>
         </div>
 
         <div class="tool-opts option-grid" data-tool="trim">
@@ -256,11 +258,11 @@
 
         <p class="tool-hint" id="tool-hint"></p>
       </div>
-      <label class="drop" data-mode="tools">
+      <div class="drop" data-mode="tools">
         <input type="file" multiple hidden>
         <strong id="tool-drop-title">Drop files here</strong>
-        <span>or click to choose</span>
-      </label>
+        <button type="button" class="choose-files">Choose files</button><span class="drop-caption">or drag them here</span>
+      </div>
       <div id="tool-list" class="zip-list" hidden>
         <ol></ol>
         <div class="zip-actions">
@@ -281,12 +283,12 @@
           <input id="archive-name" type="text" value="files" aria-label="Archive name" placeholder="Archive name">
         </div>
       </div>
-      <label class="drop" data-mode="zip">
+      <div class="drop" data-mode="zip">
         <input type="file" multiple hidden>
         <strong>Drop files or folders to bundle</strong>
-        <span>or click to choose files</span>
+        <button type="button" class="choose-files">Choose files</button><span class="drop-caption">or drag files or folders here</span>
         <small>Folder structure is kept. Nothing is lost — every file comes back out exactly the same.</small>
-      </label>
+      </div>
       <div id="zip-list" class="zip-list" hidden>
         <ul></ul>
         <div class="zip-actions">
@@ -315,6 +317,10 @@
     </div>
     <ul id="results" class="results"></ul>
 
+    <aside class="example" aria-label="Illustrative compression example">
+      <div><span class="example-label">A LITTLE LESS FILE. A LOT MORE ROOM.</span><p>Ready to send. Easy to share.</p><small>Illustrative example. Results depend on your file and settings.</small></div>
+      <div class="example-sizes"><span>Original<strong>48 MB</strong></span><span aria-hidden="true">→</span><span>Compressed<strong>12 MB</strong></span></div>
+    </aside>
     <details class="help" id="help">
       <summary>How compression works for each file type</summary>
       <dl>
@@ -346,7 +352,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>Everything happens on your device. Built with pdf.js, jsPDF, pdf-lib, fflate, heic2any and ffmpeg.wasm.</p>
+    <p>FileFit · A little less file. A lot more possibility.</p>
   </footer>
 </body>
 </html>

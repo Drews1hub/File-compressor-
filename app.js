@@ -420,6 +420,7 @@ let toolItems = [];
 
 function showTool() {
   const tool = $('#tool').value;
+  for (const card of $$('[data-tool-choice]')) card.setAttribute('aria-pressed', String(card.dataset.toolChoice === tool));
   for (const el of $$('.tool-opts')) el.hidden = el.dataset.tool !== tool;
   [$('#tool-drop-title').textContent, $('#tool-hint').textContent] = TOOL_TEXT[tool];
   toolItems = [];
@@ -529,6 +530,13 @@ $('#tool-make').addEventListener('click', () => {
 });
 $('#tool-clear').addEventListener('click', () => { toolItems = []; renderToolList(); });
 $('#tool').addEventListener('change', showTool);
+for (const card of $$('[data-tool-choice]')) {
+  card.addEventListener('click', () => {
+    $('#tool').value = card.dataset.toolChoice;
+    showTool();
+    saveSettings();
+  });
+}
 
 // ---------- download all / clear ----------
 
@@ -635,6 +643,7 @@ const inOrder = (items) => items.sort((a, b) => byName.compare(a.path, b.path));
 
 for (const drop of $$('.drop')) {
   const input = drop.querySelector('input');
+  drop.querySelector('.choose-files').addEventListener('click', () => input.click());
   const run = HANDLE[drop.dataset.mode];
   const handle = (items) => run(inOrder(items));
   input.addEventListener('change', () => {
@@ -665,6 +674,8 @@ for (const tab of $$('[role="tab"]')) {
 for (const b of $$('.presets button')) {
   b.addEventListener('click', () => { $('#target').value = b.dataset.mb; $('#unit').value = 'mb'; saveSettings(); });
 }
+
+for (const link of $$('a[href="#help"]')) link.addEventListener('click', () => { $('#help').open = true; });
 
 loadSettings();
 showGoal();
