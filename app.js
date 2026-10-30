@@ -4,7 +4,7 @@ import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
-import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261030-chapter-resets';
+import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261030-chapter-fix';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;
@@ -407,7 +407,7 @@ $('#zip-clear').addEventListener('click', () => { zipItems = []; renderZipList()
 
 const TOOL_TEXT = {
   trim: ['Drop videos or audio to trim', 'Times are minutes:seconds, like 1:30. Leave End blank to keep everything after Start.'],
-  'join-audio': ['Drop the audio tracks, all discs at once', 'Everything is joined into one audiobook file, with a chapter at the start of each track so you can still skip between discs. Files dropped together are sorted by name; use the arrows to fix the order.'],
+  'join-audio': ['Drop the audio tracks, all discs at once', 'Everything is joined into one audiobook file. By default a new chapter starts wherever the track numbering starts over at Track 1. Files dropped together are sorted by name, numbers in order; use the arrows to fix the order.'],
   'split-audio': ['Drop your audiobook here', 'It is cut at its chapter markers into numbered tracks, all tagged as one book, so iTunes lists them together. It needs a file with chapters, such as one made with the join tool\'s "One file" option.'],
   'merge-pdf': ['Drop the PDFs to merge', 'Pages keep their text and quality. Put the list in order, then merge.'],
   'split-pdf': ['Drop a PDF to split', 'Every part keeps its text selectable.'],

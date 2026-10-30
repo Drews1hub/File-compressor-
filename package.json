@@ -1,6 +1,6 @@
 {
   "name": "filefit-security-checks",
   "private": true,
-  "scripts": { "test": "node tests/security.cjs && node tests/sanitize.cjs" },
+  "scripts": { "test": "node tests/security.cjs && node tests/sanitize.cjs && node tests/chapters.cjs" },
   "devDependencies": { "linkedom": "0.18.12" }
 }

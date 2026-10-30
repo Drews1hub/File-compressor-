@@ -1,4 +1,5 @@
 import { unpack, MAX_ARCHIVE_BYTES } from './unpack.js';
+import { chapterPlan } from './chapters.js?v=20261030-chapter-fix';
 // The "File tools" tab: trim, merge/split PDFs, photos → PDF, rotate/resize photos, open archives.
 import { ext, baseName, fmt, fmtDuration, kindOf, canvasToBlob, makeCanvas, loadScript, tick, VIDEO_EXT, AUDIO_EXT } from './util.js';
 import { decodeImage, canEncode } from './images.js';
@@ -72,40 +73,29 @@ export function trimMedia(file, { start, end, exact }, progress) {
 // Chapter titles in FFMETADATA: these characters must be escaped with a backslash.
 const escapeMeta = (s) => s.replace(/[=;#\\\n]/g, '\\$&');
 
-// Chapter metadata for the joined book: one chapter per file when there are several, none for a single file
+// Chapter metadata for the joined book, from the plan made by chapterPlan(); none for a single file
 // (its own chapters are kept). `index` is the input number the metadata file gets.
-// Detect a new chapter when the second number in 001-01 Track 1 resets to 1.
-function trackInChapter(name) {
-  const label = baseName(name);
-  const pair = /^\d+[-_ ]+0*(\d+)(?=\D|$)/.exec(label);
-  const track = /\btrack[ _-]*0*(\d+)\b/i.exec(label);
-  return pair ? Number(pair[1]) : track ? Number(track[1]) : null;
-}
-
-async function chapterInput(job, files, durations, index, book) {
-  if (files.length < 2) return { extra: [], map: [] };
-  const resets = book.chapterNames === 'resets';
-  const nums = resets ? files.map(file => trackInChapter(file.name)) : [];
-  if (resets && (nums[0] !== 1 || nums.some(n => !Number.isInteger(n) || n < 1))) {
-    throw new Error('To detect chapter resets, filenames must follow 001-01 Track 1 and begin at track 1. Otherwise choose numbered tracks or original filenames.');
-  }
-  let start = 0, chapterStart = 0, chapterCount = 0;
-  const chapters = [];
-  const add = (from, to, title) => {
-    chapters.push(`[CHAPTER]\nTIMEBASE=1/1000\nSTART=${from}\nEND=${to}\ntitle=${escapeMeta(title)}\n`);
-  };
-  files.forEach((file, i) => {
-    if (resets && i > 0 && nums[i] === 1) {
-      add(chapterStart, start, `Chapter ${++chapterCount}`);
-      chapterStart = start;
-    }
-    const end = start + Math.round(durations[i] * 1000);
-    if (!resets) add(start, end, book.chapterNames === 'filename' ? baseName(file.name) : `Track ${i + 1}`);
-    start = end;
+async function chapterInput(job, durations, index, book) {
+  if (durations.length < 2) return { extra: [], map: [] };
+  // Each file's start time in milliseconds; the last entry is the end of the book.
+  const starts = [0];
+  for (const d of durations) starts.push(starts[starts.length - 1] + Math.round(d * 1000));
+  const chapters = book.chapters.map((c, k) => {
+    const end = starts[book.chapters[k + 1]?.first ?? durations.length];
+    return `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${starts[c.first]}\nEND=${end}\ntitle=${escapeMeta(c.title)}\n`;
   });
-  if (resets) add(chapterStart, start, `Chapter ${++chapterCount}`);
   const meta = await job.writeText(`;FFMETADATA1\n${chapters.join('')}`, 'txt');
   return { extra: ['-i', meta], map: ['-map_chapters', String(index)] };
+}
+
+// "139 files joined …, 12 chapters." plus, for chapters found from the track numbers, where each one starts.
+function joinSummary(n, total, book) {
+  const c = book.chapters.length;
+  return `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, ${c} chapter${c === 1 ? '' : 's'}.`;
+}
+function chapterNote(book) {
+  if (book.chapterNames !== 'resets') return '';
+  return ` Chapters start where the track numbering starts over: files ${book.chapters.map((c) => c.first + 1).join(', ')} in the list.`;
 }
 
 // Copies the AAC audio of each track straight into the book: no re-encoding, so no quality loss.
@@ -118,14 +108,14 @@ async function copyJoin(job, files, durations, total, book) {
   }
   // The concat demuxer reads a list of files; quotes inside a path are escaped the way ffmpeg expects.
   const list = await job.writeText(job.inputs.map((path) => `file '${path.replace(/'/g, "'\\''")}'`).join('\n') + '\n', 'txt');
-  const chapters = await chapterInput(job, files, durations, 1, book);
+  const chapters = await chapterInput(job, durations, 1, book);
   const blob = await job.encode(['-f', 'concat', '-safe', '0', '-i', list, ...chapters.extra,
     '-map', '0:a:0', ...chapters.map, '-c', 'copy', ...book.meta, '-f', 'ipod'],
   'm4b', 'audio/mp4', { duration: total, label: 'Joining' });
   return {
     outputs: [{ blob, name: book.file }],
-    summary: `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, one chapter per file.`,
-    note: 'Audio copied as-is, so quality is unchanged.',
+    summary: joinSummary(n, total, book),
+    note: `Audio copied as-is, so quality is unchanged.${chapterNote(book)}`,
   };
 }
 
@@ -136,16 +126,16 @@ async function reencodeJoin(job, files, durations, total, book) {
   const inputs = job.inputs.flatMap((path) => ['-i', path]);
   const chains = job.inputs.map((_, i) => `[${i}:a:0]${TO_STEREO_44K}[a${i}]`);
   const concat = `${job.inputs.map((_, i) => `[a${i}]`).join('')}concat=n=${n}:v=0:a=1[out]`;
-  const chapters = await chapterInput(job, files, durations, n, book);
+  const chapters = await chapterInput(job, durations, n, book);
   const blob = await job.encode([...inputs, ...chapters.extra, '-filter_complex', [...chains, concat].join(';'),
     '-map', '[out]', ...chapters.map, '-c:a', 'aac', '-b:a', '192k', ...book.meta, '-f', 'ipod'],
   'm4b', 'audio/mp4', { duration: total, label: 'Joining' });
   return {
     outputs: [{ blob, name: book.file }],
     summary: n > 1
-      ? `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, one chapter per file.`
+      ? joinSummary(n, total, book)
       : `Done — one audiobook, ${fmtDuration(total)} long.`,
-    note: 'Re-encoded to AAC 192k so the tracks join cleanly.',
+    note: `Re-encoded to AAC 192k so the tracks join cleanly.${chapterNote(book)}`,
   };
 }
 
@@ -306,14 +296,16 @@ export async function splitAudiobook(file, { title = '', author = '' }, progress
   };
 }
 
-// Joins the tracks, in the order given, into one M4B. With several files each one becomes a chapter,
-// so the book is a single file that can still be navigated by disc and track.
+// Joins the tracks, in the order given, into one M4B. With several files the chapters follow the Chapter names
+// choice: one wherever the track numbering starts over, or one per file.
 // A single file keeps whatever chapters it already has.
 export async function joinAudiobook(files, progress, { title = '', author = '', separate = false, chapterNames = 'resets' } = {}) {
   if (separate) return separateTracks(files, progress, title.trim(), author.trim());
   const book = audiobookTags(title, 'audiobook', author);
   book.chapterNames = chapterNames;
   const n = files.length;
+  // Worked out before any audio is read, so a file name without a track number is reported straight away.
+  book.chapters = n > 1 ? chapterPlan(files.map((f) => f.name), chapterNames) : [];
 
   // Pass 1: read every track. If they are all AAC in one format they are copied straight in (lossless, seconds).
   // A single track, or a computer with no spare core, is re-encoded here; anything else goes on to pass 2.
@@ -348,7 +340,7 @@ export async function joinAudiobook(files, progress, { title = '', author = '', 
     for (let i = 0; i < n; i++) durations.push((await job.probe(job.inputs[i])).duration);
     const total = durations.reduce((s, d) => s + d, 0);
     const result = await copyJoin(job, files, durations, total, book);
-    return { ...result, note: 'Re-encoded to AAC 192k so the tracks join cleanly.' };
+    return { ...result, note: `Re-encoded to AAC 192k so the tracks join cleanly.${chapterNote(book)}` };
   });
 }
 
