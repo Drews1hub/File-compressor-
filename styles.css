@@ -451,15 +451,6 @@ button:disabled { opacity: .4; cursor: default; }
 .stack { display: grid; gap: 8px; }
 .tool-hint { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
 
-/* ---------- help ---------- */
-
-.help { scroll-margin-top: 64px; margin-top: 40px; padding-top: 16px; border-top: 0.5px solid var(--border); color: var(--muted); font-size: 15px; }
-.help dl { margin: 8px 0 0; }
-.help dt { color: var(--text); font-weight: 600; margin-top: 16px; }
-.help dd { margin: 4px 0 0; }
-.help p { margin: 16px 0 0; }
-.help strong { color: var(--text); }
-
 /* ---------- footer ---------- */
 
 .site-footer { background: #272727; padding: 32px 24px; text-align: center; }
