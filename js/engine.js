@@ -96,7 +96,8 @@ function parseInfo(text) {
   const d = /Duration: (\d+):(\d+):([\d.]+)/.exec(text);
   const v = /Stream #\S+.*?: Video: (\w+).*?, (\d{2,5})x(\d{2,5})/.exec(text);
   const fps = /, ([\d.]+) fps/.exec(text);
-  const a = /Stream #\S+.*?: Audio: (\w+).*?, (\d+) Hz, (\w+)/.exec(text);
+  // The sample rate and channel layout are optional here: a stream ffmpeg reports with unusual details is still sound.
+  const a = /Stream #\S+.*?: Audio: (\w+)(?:.*?, (\d+) Hz, (\w+))?/.exec(text);
   // Cover art in music files shows up as a one-frame video stream.
   const isCover = v && /\(attached pic\)/.test(text.split('\n').find((l) => l.includes(v[0])) ?? '');
   return {
@@ -159,7 +160,10 @@ export async function ffmpegJob(file, progress, fn, { engine } = {}) {
     run,
     // Probes any input by path, without the picture or sound details of the first file.
     async probe(path) {
-      return parseInfo((await run(['-i', path])).logs.join('\n'));
+      const text = (await run(['-i', path])).logs.join('\n');
+      // `problem` is what ffmpeg complained about, so an unreadable file can say why.
+      const problem = text.split('\n').filter((l) => /invalid|error|fail|no such|not found|moov|could not|unsupported|corrupt|missing|truncat/i.test(l)).slice(-2).join(' ').trim();
+      return { ...parseInfo(text), problem };
     },
     // Writes a small text file (such as chapter metadata) next to the outputs and returns its path.
     async writeText(text, outExt) {
