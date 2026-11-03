@@ -71,3 +71,14 @@ export function loadScript(src) {
     document.head.append(s);
   });
 }
+
+// A name without the track numbers at its front ("01 - 01 - Name.mp3" → "Name.mp3"), so numbering a file that was
+// numbered before replaces the old number instead of stacking another one. Only 1–3 digits count as a number
+// (so "2001 A Space Odyssey" keeps its title), and a name that is nothing but a number is left alone.
+export function withoutNumber(name) {
+  const base = baseName(name);
+  const extension = name.slice(base.length);
+  let stripped = base;
+  for (let next; (next = stripped.replace(/^\s*\d{1,3}(?:\s*[-._)]\s*|\s+)(?=\S)/, '')) !== stripped;) stripped = next;
+  return stripped.trim() ? stripped + extension : name;
+}
