@@ -4,7 +4,7 @@ import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
-import { TOOLS, withoutNumber, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261103-no-double-numbers';
+import { TOOLS, withoutNumber, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261103-keep-names';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;
@@ -19,7 +19,7 @@ const convertTo = $('#convert-to');
 // Key kept from the old name so saved settings carry over.
 const SETTINGS_KEY = 'file-squeeze-settings';
 const SETTING_FIELDS = ['#target', '#unit', '#percent', '#image-format', '#max-side', '#max-res', '#mute', '#convert-to',
-  '#archive-type', '#tool', '#pdf-page', '#number-files'];
+  '#archive-type', '#tool', '#pdf-page'];
 const checked = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
 
 function saveSettings() {
@@ -695,7 +695,7 @@ for (const link of $$('a[href="#help"]')) link.addEventListener('click', () => {
 loadSettings();
 showGoal();
 showTool();
-for (const el of $$('#panel-compress input, #panel-compress select, #convert-to, #archive-type, #tool, #pdf-page, #number-files')) {
+for (const el of $$('#panel-compress input, #panel-compress select, #convert-to, #archive-type, #tool, #pdf-page')) {
   el.addEventListener('change', () => { showGoal(); saveSettings(); });
 }
 $('#percent').addEventListener('input', showGoal);

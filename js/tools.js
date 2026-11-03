@@ -238,12 +238,9 @@ async function separateTracks(files, progress, title, author) {
     ext: 'm4b',
     type: 'audio/mp4',
   }));
-  const digits = Math.max(2, String(n).length);
+  // Each file keeps its own name; the order is in the track number tag, which is what iTunes sorts by.
   return {
-    outputs: blobs.map((blob, i) => ({
-      blob,
-      name: `${String(i + 1).padStart(digits, '0')} ${audiobookTags(withoutNumber(baseName(files[i].name))).file}`,
-    })),
+    outputs: blobs.map((blob, i) => ({ blob, name: audiobookTags(baseName(files[i].name)).file })),
     summary: `Done — ${n} track${n === 1 ? '' : 's'}, listed together as "${book}".`,
     note: 'Each track is its own file, numbered in order, so iTunes shows them as one book. Add them all to iTunes together.',
   };
@@ -300,9 +297,13 @@ export async function splitAudiobook(file, { title = '', author = '' }, progress
     ext: 'm4b',
     type: 'audio/mp4',
   }));
+  // Files are named after their chapters. Only when two chapters share a name does a number go in front,
+  // so one file doesn't overwrite the other.
   const digits = Math.max(2, String(n).length);
+  const names = chapters.map((_, i) => audiobookTags(trackTitle(i)).file);
+  const repeated = new Set(names.filter((name, i) => names.indexOf(name) !== i));
   return {
-    outputs: blobs.map((blob, i) => ({ blob, name: `${String(i + 1).padStart(digits, '0')} ${audiobookTags(withoutNumber(trackTitle(i))).file}` })),
+    outputs: blobs.map((blob, i) => ({ blob, name: repeated.has(names[i]) ? `${String(i + 1).padStart(digits, '0')} ${names[i]}` : names[i] })),
     summary: `Done — ${n} tracks, listed together as "${book}".`,
     note: `Cut at the ${n} chapter markers. ${codec === 'aac' ? 'The audio was copied as it is, so quality is unchanged.' : 'Re-encoded to AAC 192k.'} Add all the files to iTunes together.`,
   };
