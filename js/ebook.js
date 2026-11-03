@@ -1,3 +1,5 @@
+import { sanitizeBookHtml } from './sanitize.js';
+import { unpack } from './unpack.js';
 // E-books: read EPUB, MOBI / AZW / AZW3 and FB2 (plus plain text, Markdown, HTML and PDF text) into one simple
 // shape, then write EPUB, HTML, TXT or PDF. Everything happens in the browser.
 import { baseName, ext } from './util.js';
@@ -44,7 +46,7 @@ function zipPath(from, href) {
 async function readEpub(file, progress) {
   let files;
   try {
-    files = fflate.unzipSync(new Uint8Array(await file.arrayBuffer()));
+    files = await unpack(file);
   } catch {
     throw new Error("Couldn't open this EPUB. The file may be damaged.");
   }
@@ -306,7 +308,7 @@ function toText(book) {
 function toHtml(book) {
   const toc = book.chapters.length > 1
     ? `<nav><h2>Contents</h2><ol>${book.chapters.map((c, i) => `<li><a href="#c${i + 1}">${esc(c.title)}</a></li>`).join('')}</ol></nav>` : '';
-  const body = book.chapters.map((c, i) => `<section id="c${i + 1}">\n${c.html}\n</section>`).join('\n<hr>\n');
+  const body = book.chapters.map((c, i) => `<section id="c${i + 1}">\n${sanitizeBookHtml(c.html)}\n</section>`).join('\n<hr>\n');
   return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(book.title)}</title>
@@ -389,7 +391,7 @@ function toEpub(book) {
   const id = `urn:uuid:${crypto.randomUUID()}`;
   const chapterFiles = book.chapters.map((c, i) => {
     const name = `text/chapter${i + 1}.xhtml`;
-    const body = xhtmlBody(pullImages(c.html));
+    const body = xhtmlBody(pullImages(sanitizeBookHtml(c.html)));
     files[`OEBPS/${name}`] = fflate.strToU8(`<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"><head><meta charset="utf-8"/><title>${esc(c.title)}</title><link rel="stylesheet" type="text/css" href="../style.css"/></head><body>

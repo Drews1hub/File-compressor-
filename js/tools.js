@@ -1,3 +1,5 @@
+import { unpack, MAX_ARCHIVE_BYTES } from './unpack.js';
+import { chapterPlan } from './chapters.js?v=20261030-chapter-fix';
 // The "File tools" tab: trim, merge/split PDFs, photos → PDF, rotate/resize photos, open archives.
 import { ext, baseName, fmt, fmtDuration, kindOf, canvasToBlob, makeCanvas, loadScript, tick, VIDEO_EXT, AUDIO_EXT } from './util.js';
 import { decodeImage, canEncode } from './images.js';
@@ -71,43 +73,30 @@ export function trimMedia(file, { start, end, exact }, progress) {
 // Chapter titles in FFMETADATA: these characters must be escaped with a backslash.
 const escapeMeta = (s) => s.replace(/[=;#\\\n]/g, '\\$&');
 
-// The track number in a file name: the number after "track" (Track 01, D2T01), else the one the name starts with
-// (01 - Name), else the last number in it (Disc 3 - 01). null when there is no number.
-export function trackNumber(fileName) {
-  const name = baseName(fileName);
-  const m = /(?:^|[^a-z])(?:track|trk|tr|t)[\s._-]*(\d+)/i.exec(name) || /^\s*(\d+)/.exec(name) || /(\d+)(?!.*\d)/.exec(name);
-  return m ? Number(m[1]) : null;
-}
-
-// Which files begin a new chapter when chapters are one per disc: the first file, and every file numbered Track 1.
-export const discStarts = (names) => names.map((name, i) => i === 0 || trackNumber(name) === 1);
-
-// Chapter metadata for the joined book: one chapter per file (or per disc, when `starts` marks where each begins)
-// when there are several files, none for a single file (its own chapters are kept).
-// `index` is the input number the metadata file gets.
-async function chapterInput(job, files, durations, index, starts = files.map(() => true)) {
-  if (files.length < 2) return { extra: [], map: [] };
-  const perFile = starts.every(Boolean);
-  const chapters = [];
-  let time = 0;
-  let disc = 0;
-  files.forEach((file, i) => {
-    const end = time + Math.round(durations[i] * 1000);
-    if (starts[i]) {
-      disc++;
-      chapters.push({ start: time, title: perFile ? baseName(file.name) : `Disc ${disc}` });
-    }
-    chapters[chapters.length - 1].end = end;
-    time = end;
+// Chapter metadata for the joined book, from the plan made by chapterPlan(); none for a single file
+// (its own chapters are kept). `index` is the input number the metadata file gets.
+async function chapterInput(job, durations, index, book) {
+  if (durations.length < 2) return { extra: [], map: [] };
+  // Each file's start time in milliseconds; the last entry is the end of the book.
+  const starts = [0];
+  for (const d of durations) starts.push(starts[starts.length - 1] + Math.round(d * 1000));
+  const chapters = book.chapters.map((c, k) => {
+    const end = starts[book.chapters[k + 1]?.first ?? durations.length];
+    return `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${starts[c.first]}\nEND=${end}\ntitle=${escapeMeta(c.title)}\n`;
   });
-  const meta = await job.writeText(`;FFMETADATA1\n${chapters.map((c) =>
-    `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${c.start}\nEND=${c.end}\ntitle=${escapeMeta(c.title)}\n`).join('')}`, 'txt');
+  const meta = await job.writeText(`;FFMETADATA1\n${chapters.join('')}`, 'txt');
   return { extra: ['-i', meta], map: ['-map_chapters', String(index)] };
 }
 
-const chapterWords = (starts) => starts.every(Boolean)
-  ? 'one chapter per file'
-  : `${starts.filter(Boolean).length} chapter${starts.filter(Boolean).length === 1 ? '' : 's'}, one per disc`;
+// "139 files joined …, 12 chapters." plus, for chapters found from the track numbers, where each one starts.
+function joinSummary(n, total, book) {
+  const c = book.chapters.length;
+  return `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, ${c} chapter${c === 1 ? '' : 's'}.`;
+}
+function chapterNote(book) {
+  if (book.chapterNames !== 'resets') return '';
+  return ` Chapters start where the track numbering starts over: files ${book.chapters.map((c) => c.first + 1).join(', ')} in the list.`;
+}
 
 // Copies the AAC audio of each track straight into the book: no re-encoding, so no quality loss.
 async function copyJoin(job, files, durations, total, book) {
@@ -119,14 +108,14 @@ async function copyJoin(job, files, durations, total, book) {
   }
   // The concat demuxer reads a list of files; quotes inside a path are escaped the way ffmpeg expects.
   const list = await job.writeText(job.inputs.map((path) => `file '${path.replace(/'/g, "'\\''")}'`).join('\n') + '\n', 'txt');
-  const chapters = await chapterInput(job, files, durations, 1, book.starts);
+  const chapters = await chapterInput(job, durations, 1, book);
   const blob = await job.encode(['-f', 'concat', '-safe', '0', '-i', list, ...chapters.extra,
     '-map', '0:a:0', ...chapters.map, '-c', 'copy', ...book.meta, '-f', 'ipod'],
   'm4b', 'audio/mp4', { duration: total, label: 'Joining' });
   return {
     outputs: [{ blob, name: book.file }],
-    summary: `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, ${chapterWords(book.starts)}.`,
-    note: 'Audio copied as-is, so quality is unchanged.',
+    summary: joinSummary(n, total, book),
+    note: `Audio copied as-is, so quality is unchanged.${chapterNote(book)}`,
   };
 }
 
@@ -137,16 +126,16 @@ async function reencodeJoin(job, files, durations, total, book) {
   const inputs = job.inputs.flatMap((path) => ['-i', path]);
   const chains = job.inputs.map((_, i) => `[${i}:a:0]${TO_STEREO_44K}[a${i}]`);
   const concat = `${job.inputs.map((_, i) => `[a${i}]`).join('')}concat=n=${n}:v=0:a=1[out]`;
-  const chapters = await chapterInput(job, files, durations, n, book.starts);
+  const chapters = await chapterInput(job, durations, n, book);
   const blob = await job.encode([...inputs, ...chapters.extra, '-filter_complex', [...chains, concat].join(';'),
     '-map', '[out]', ...chapters.map, '-c:a', 'aac', '-b:a', '192k', ...book.meta, '-f', 'ipod'],
   'm4b', 'audio/mp4', { duration: total, label: 'Joining' });
   return {
     outputs: [{ blob, name: book.file }],
     summary: n > 1
-      ? `Done — ${n} files joined into one audiobook, ${fmtDuration(total)} long, ${chapterWords(book.starts)}.`
+      ? joinSummary(n, total, book)
       : `Done — one audiobook, ${fmtDuration(total)} long.`,
-    note: 'Re-encoded to AAC 192k so the tracks join cleanly.',
+    note: `Re-encoded to AAC 192k so the tracks join cleanly.${chapterNote(book)}`,
   };
 }
 
@@ -307,15 +296,16 @@ export async function splitAudiobook(file, { title = '', author = '' }, progress
   };
 }
 
-// Joins the tracks, in the order given, into one M4B. With several files each one becomes a chapter,
-// so the book is a single file that can still be navigated by disc and track. With `discs`, a chapter begins
-// only at each file numbered Track 1, so there is one chapter per disc.
+// Joins the tracks, in the order given, into one M4B. With several files the chapters follow the Chapter names
+// choice: one wherever the track numbering starts over, or one per file.
 // A single file keeps whatever chapters it already has.
-export async function joinAudiobook(files, progress, { title = '', author = '', separate = false, discs = false } = {}) {
+export async function joinAudiobook(files, progress, { title = '', author = '', separate = false, chapterNames = 'resets' } = {}) {
   if (separate) return separateTracks(files, progress, title.trim(), author.trim());
-  const starts = discs ? discStarts(files.map((f) => f.name)) : files.map(() => true);
-  const book = { ...audiobookTags(title, 'audiobook', author), starts };
+  const book = audiobookTags(title, 'audiobook', author);
+  book.chapterNames = chapterNames;
   const n = files.length;
+  // Worked out before any audio is read, so a file name without a track number is reported straight away.
+  book.chapters = n > 1 ? chapterPlan(files.map((f) => f.name), chapterNames) : [];
 
   // Pass 1: read every track. If they are all AAC in one format they are copied straight in (lossless, seconds).
   // A single track, or a computer with no spare core, is re-encoded here; anything else goes on to pass 2.
@@ -350,7 +340,7 @@ export async function joinAudiobook(files, progress, { title = '', author = '', 
     for (let i = 0; i < n; i++) durations.push((await job.probe(job.inputs[i])).duration);
     const total = durations.reduce((s, d) => s + d, 0);
     const result = await copyJoin(job, files, durations, total, book);
-    return { ...result, note: 'Re-encoded to AAC 192k so the tracks join cleanly.' };
+    return { ...result, note: `Re-encoded to AAC 192k so the tracks join cleanly.${chapterNote(book)}` };
   });
 }
 
@@ -497,36 +487,43 @@ export async function editPhoto(file, { rotate, flip, resize }, progress) {
 
 // ---------- archives ----------
 
-function readTar(data) {
+export function readTar(data) {
   const files = [];
   const dec = new TextDecoder();
   const str = (o, n) => dec.decode(data.subarray(o, o + n)).replace(/\0.*$/s, '');
   let longName = null;
+  let entryCount = 0;
   for (let off = 0; off + 512 <= data.length;) {
     if (data[off] === 0) break; // end-of-archive blocks
     let name = str(off, 100);
     const prefix = str(off + 345, 155);
     if (prefix) name = `${prefix}/${name}`;
-    const size = parseInt(str(off + 124, 12).trim() || '0', 8);
+    const sizeText = str(off + 124, 12).trim() || '0';
+    if (!/^[0-7]+$/.test(sizeText)) throw new Error('Invalid TAR entry size.');
+    const size = Number.parseInt(sizeText, 8);
+    const next = off + 512 + Math.ceil(size / 512) * 512;
+    if (!Number.isSafeInteger(size) || next <= off || next > data.length) throw new Error('Truncated or invalid TAR entry.');
+    if (++entryCount > 10000) throw new Error('Archive exceeds the 10,000 entry safety limit.');
     const type = String.fromCharCode(data[off + 156]);
     const body = data.subarray(off + 512, off + 512 + size);
     if (type === 'L') longName = dec.decode(body).replace(/\0.*$/s, ''); // GNU long file name
     else if (type === '0' || type === '\0') { files.push({ path: longName ?? name, data: body }); longName = null; }
-    off += 512 + Math.ceil(size / 512) * 512;
+    off = next;
   }
   return files;
 }
 
 export async function extractArchive(file, progress) {
   progress?.('Opening…');
+  if (file.size > MAX_ARCHIVE_BYTES) throw new Error('Archive exceeds the 256 MiB safety limit.');
   let data = new Uint8Array(await file.arrayBuffer());
   let entries;
   try {
     if (data[0] === 0x50 && data[1] === 0x4b) {
-      const unzipped = await new Promise((res, rej) => fflate.unzip(data, (err, out) => (err ? rej(err) : res(out))));
+      const unzipped = await unpack(file);
       entries = Object.entries(unzipped).filter(([p]) => !p.endsWith('/') && !p.startsWith('__MACOSX/')).map(([path, d]) => ({ path, data: d }));
     } else {
-      if (data[0] === 0x1f && data[1] === 0x8b) data = await new Promise((res, rej) => fflate.gunzip(data, (err, out) => (err ? rej(err) : res(out))));
+      if (data[0] === 0x1f && data[1] === 0x8b) data = (await unpack(file, 'gzip')).data;
       const isTar = data.length >= 512 && new TextDecoder().decode(data.subarray(257, 262)) === 'ustar';
       entries = isTar ? readTar(data) : [{ path: file.name.replace(/\.gz$/i, '') || 'file', data }];
     }

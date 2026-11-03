@@ -1,9 +1,10 @@
+import { cancelUnpack } from './js/unpack.js';
 import { MB, fmt, kindOf } from './js/util.js';
 import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
-import { TOOLS, parseTime, trimMedia, joinAudiobook, discStarts, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js';
+import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261103-drop-anywhere';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;
@@ -257,6 +258,7 @@ function makeRow(file) {
       row.setStatus('Cancelling…', 'err');
       abort(new Error('Cancelled.'));
       cancelEngine();
+      cancelUnpack();
     } else {
       row.setStatus('Cancelled.', 'err');
       delete li.dataset.busy;
@@ -405,7 +407,7 @@ $('#zip-clear').addEventListener('click', () => { zipItems = []; renderZipList()
 
 const TOOL_TEXT = {
   trim: ['Drop videos or audio to trim', 'Times are minutes:seconds, like 1:30. Leave End blank to keep everything after Start.'],
-  'join-audio': ['Drop the audio tracks, all discs at once', 'Everything is joined into one audiobook file, with a chapter at the start of each track (or only at each Track 1, if you pick that output) so you can still skip between discs. Files dropped together are sorted by name; use the arrows to fix the order.'],
+  'join-audio': ['Drop the audio tracks, all discs at once', 'Everything is joined into one audiobook file. By default a new chapter starts wherever the track numbering starts over at Track 1. Files dropped together are sorted by name, numbers in order; use the arrows to fix the order.'],
   'split-audio': ['Drop your audiobook here', 'It is cut at its chapter markers into numbered tracks, all tagged as one book, so iTunes lists them together. It needs a file with chapters, such as one made with the join tool\'s "One file" option.'],
   'merge-pdf': ['Drop the PDFs to merge', 'Pages keep their text and quality. Put the list in order, then merge.'],
   'split-pdf': ['Drop a PDF to split', 'Every part keeps its text selectable.'],
@@ -418,6 +420,7 @@ let toolItems = [];
 
 function showTool() {
   const tool = $('#tool').value;
+  for (const card of $$('[data-tool-choice]')) card.setAttribute('aria-pressed', String(card.dataset.toolChoice === tool));
   for (const el of $$('.tool-opts')) el.hidden = el.dataset.tool !== tool;
   [$('#tool-drop-title').textContent, $('#tool-hint').textContent] = TOOL_TEXT[tool];
   toolItems = [];
@@ -428,16 +431,6 @@ function renderToolList() {
   const tool = $('#tool').value;
   const box = $('#tool-list');
   box.hidden = !TOOLS[tool].multi || !toolItems.length;
-  // With one chapter per disc, show which files will start a new chapter, so a wrong guess can be fixed first.
-  const starts = tool === 'join-audio' && $('#book-output').value === 'discs' ? discStarts(toolItems.map((f) => f.name)) : null;
-  const note = $('#disc-note');
-  note.hidden = !starts || !toolItems.length;
-  if (starts) {
-    const count = starts.filter(Boolean).length;
-    note.textContent = count < 2 && toolItems.length > 1
-      ? 'Only one file looks like Track 1, so the whole book would be a single chapter. Check the file names, or use "a chapter for each track".'
-      : `${count} new chapter${count === 1 ? '' : 's'} will start at the files marked "New chapter".`;
-  }
   box.querySelector('ol').replaceChildren(...toolItems.map((file, i) => {
     const li = document.createElement('li');
     li.innerHTML = `<div class="item"><span></span><span class="size"></span>
@@ -446,7 +439,6 @@ function renderToolList() {
       <button type="button" data-remove aria-label="Remove">✕</button></div>`;
     li.querySelector('span').textContent = file.name;
     li.querySelector('.size').textContent = fmt(file.size);
-    if (starts?.[i]) li.querySelector('span').textContent = `▶ New chapter · ${file.name}`;
     li.querySelector('[data-move="-1"]').disabled = i === 0;
     li.querySelector('[data-move="1"]').disabled = i === toolItems.length - 1;
     li.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => {
@@ -520,7 +512,7 @@ $('#tool-make').addEventListener('click', () => {
     const title = $('#book-title').value;
     const author = $('#book-author').value;
     const row = makeRow({ name: `${title.trim() || 'audiobook'}.m4b`, size: total });
-    enqueue(row, (progress) => joinAudiobook(files, progress, { title, author, separate: $('#book-output').value === 'tracks', discs: $('#book-output').value === 'discs' }));
+    enqueue(row, (progress) => joinAudiobook(files, progress, { title, author, separate: $('#book-output').value === 'tracks', chapterNames: $('#book-chapter-names').value }));
   } else if (tool === 'merge-pdf') {
     const row = makeRow({ name: 'merged.pdf', size: total });
     enqueue(row, async (progress) => {
@@ -538,7 +530,13 @@ $('#tool-make').addEventListener('click', () => {
 });
 $('#tool-clear').addEventListener('click', () => { toolItems = []; renderToolList(); });
 $('#tool').addEventListener('change', showTool);
-$('#book-output').addEventListener('change', renderToolList);
+for (const card of $$('[data-tool-choice]')) {
+  card.addEventListener('click', () => {
+    $('#tool').value = card.dataset.toolChoice;
+    showTool();
+    saveSettings();
+  });
+}
 
 // ---------- download all / clear ----------
 
@@ -645,6 +643,7 @@ const inOrder = (items) => items.sort((a, b) => byName.compare(a.path, b.path));
 
 for (const drop of $$('.drop')) {
   const input = drop.querySelector('input');
+  drop.querySelector('.choose-files').addEventListener('click', () => input.click());
   const run = HANDLE[drop.dataset.mode];
   const handle = (items) => run(inOrder(items));
   input.addEventListener('change', () => {
@@ -690,6 +689,8 @@ for (const tab of $$('[role="tab"]')) {
 for (const b of $$('.presets button')) {
   b.addEventListener('click', () => { $('#target').value = b.dataset.mb; $('#unit').value = 'mb'; saveSettings(); });
 }
+
+for (const link of $$('a[href="#help"]')) link.addEventListener('click', () => { $('#help').open = true; });
 
 loadSettings();
 showGoal();
