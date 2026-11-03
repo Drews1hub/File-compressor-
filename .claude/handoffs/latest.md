@@ -1,22 +1,27 @@
-# Handoff: help page split off the homepage (2026-10-30)
+# Handoff: file names, chapters and drop-anywhere (2026-11-03)
 
-**Goal:** FileFit is a free in-browser file converter (nothing is uploaded). This session: take the "How compression works" help section off the homepage and give it its own page, "like the blog".
+**Goal:** FileFit is a free in-browser file converter (nothing is uploaded). The user, on an old MacBook (High Sierra), turns CD tracks into audiobooks for iTunes. This session: stop numbers being added to the front of file names, let them remove numbers that are already there, and a few small fixes.
 
-**Done** (branch `claude/clever-edison-ad8mje`, pushed, NOT yet merged to the live site):
-- `ea0a44e`: removed the `<details class="help" id="help">` block from `index.html` and the old `.help` rules from `styles.css`.
-- `5fe2375`: new `help.html` (same top bar, footer and `styles.css`, with a "Back to FileFit" link). The hero "How It Works" button on `index.html` now points to `help.html`. `.page` and `.help` styles were re-added at the end of `styles.css`.
-- Not opened in a browser yet.
+**Done** (all merged to the live site, PRs #9 to #12 in `Drews1hub/File-compressor-`):
+- Drop files anywhere on the page: they go to the open tab (`app.js`, bottom, `activeDrop`).
+- Unreadable-track error now says why, with ffmpeg's own message (`js/engine.js` `probe().problem`, `js/tools.js`). Audio check is less strict about sample rate and layout.
+- "Number files in list order" starts unticked and isn't saved. Join "Separate tracks" and split keep original names; the track tag holds the order.
+- New box under the drop area, "Remove numbers from the front of file names" (`#strip-numbers`, saved in the browser). It strips the file name (`addDownloads` in `app.js`) and the title tag (`js/convert.js` batchTags, `js/tools.js` separateTracks). Helper `withoutNumber` is in `js/util.js`: removes 1-3 digits plus a separator, repeatedly; keeps years like 2001 and number-only names.
+- Checked in headless Chromium with ffprobe. **Not checked on the user's Mac or iTunes.**
 
 **Decisions:**
-- There is no blog page and no section named "FAQ" in the repo. The user's "FAQ" was taken to mean the help/How-It-Works section. Not confirmed with them.
-- Only merge to the live site when the user asks.
+- No DRM stripping: Audible files (aax/aaxc/aa) are not supported and won't be built. The user's Audible web player error WP-18 and a filter on audible.ca (someone else's, so no bypass) are theirs to sort out with Audible and the filter's owner.
+- Chapters: the live site's "Chapters where track numbering resets" was kept; my own Track 1 option was dropped. The live FAQ page replaced my `help.html`.
+- The user likes the box where it is: "leave it like it is". Don't restyle it unless asked.
+- Only merge to the live site when the user says "ship it".
 
 **Open:**
-- Check `help.html` renders properly (Playwright against `python3 -m http.server`); the wordmark link uses an inline style.
-- Ask whether they wanted a different layout for the "blog-like" page, or a nav link to it from other places.
-- Ship when asked: merge the default branch into the working branch, push, open a PR into the default branch, merge it.
-- Earlier audiobook work (join/split tools, iTunes tagging, Convert tab title/author) is still the main thread: see `.claude/handoffs/2026-10-30-audiobook-batch-tags.md` and `2026-10-29-audiobook-itunes.md` for open items (iTunes result unconfirmed, cached-page confusion, WMA batch stuck row).
+- Unconfirmed that Track 8 (`08 Track 8.mp3`) now joins. If it still fails, the new error text will say why; a damaged file can be re-saved in iTunes (File, Convert, Create AAC Version).
+- Without numbers, Finder won't list separate tracks in order; iTunes uses the track tag. Offered numbering them, undecided.
+- Older items: iTunes result unconfirmed, WMA batch stuck row, AAC copy join adds ~0.02 s at each join.
 
 **Where things live:**
 - Repo `/home/user/File-compressor-`, working branch `claude/clever-edison-ad8mje`. Default branch `claude/wonderful-hypatia-9g13bo` serves GitHub Pages: https://drews1hub.github.io/File-compressor-/
-- Testing: Playwright (`NODE_PATH=$(npm root -g)`) against `python3 -m http.server` in the repo. Don't use `pkill -f` with a pattern that appears in your own command.
+- To ship: merge the default branch into the working branch, push, open a PR into the default branch, merge it. Pages caches about 10 minutes (hard refresh Cmd+Shift+R).
+- Tests: `npm ci` then `npm test`. Browser checks: Playwright (`NODE_PATH=$(npm root -g)`) against `python3 -m http.server`. Don't use `pkill -f` with a pattern that appears in your own command (exit 144); use `[h]ttp.server`.
+- Tool tabs use cards (`data-tool-choice`), not the hidden `#tool` select.
