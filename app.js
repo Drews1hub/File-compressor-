@@ -4,7 +4,7 @@ import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
-import { TOOLS, withoutNumber, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261103-keep-names';
+import { TOOLS, withoutNumber, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261103-strip-numbers';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;
@@ -19,7 +19,7 @@ const convertTo = $('#convert-to');
 // Key kept from the old name so saved settings carry over.
 const SETTINGS_KEY = 'file-squeeze-settings';
 const SETTING_FIELDS = ['#target', '#unit', '#percent', '#image-format', '#max-side', '#max-res', '#mute', '#convert-to',
-  '#archive-type', '#tool', '#pdf-page'];
+  '#archive-type', '#tool', '#pdf-page', '#strip-numbers'];
 const checked = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
 
 function saveSettings() {
@@ -204,7 +204,10 @@ function makeRow(file) {
     setNote(text) { note.textContent = text || ''; note.hidden = !text; },
     addDownloads(outputs) {
       const box = li.querySelector('.downloads');
-      for (const { blob, name } of outputs) {
+      for (const output of outputs) {
+        // With the "Remove numbers" box ticked, a number at the front of the name ("01 - Track 8") is left off.
+        const { blob } = output;
+        const name = $('#strip-numbers').checked ? withoutNumber(output.name) : output.name;
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = name;
@@ -695,7 +698,7 @@ for (const link of $$('a[href="#help"]')) link.addEventListener('click', () => {
 loadSettings();
 showGoal();
 showTool();
-for (const el of $$('#panel-compress input, #panel-compress select, #convert-to, #archive-type, #tool, #pdf-page')) {
+for (const el of $$('#panel-compress input, #panel-compress select, #convert-to, #archive-type, #tool, #pdf-page, #strip-numbers')) {
   el.addEventListener('change', () => { showGoal(); saveSettings(); });
 }
 $('#percent').addEventListener('input', showGoal);

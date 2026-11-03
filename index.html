@@ -10,7 +10,7 @@
   <script src="vendor/polyfills.js"></script>
   <script src="vendor/jspdf.umd.min.js"></script>
   <script src="vendor/fflate.min.js"></script>
-  <script type="module" src="app.js?v=20261103-keep-names"></script>
+  <script type="module" src="app.js?v=20261103-strip-numbers"></script>
 </head>
 <body>
   <nav class="topbar">
@@ -316,6 +316,7 @@
       </div>
       <span class="overall-label"></span>
     </div>
+    <label class="check" id="strip-label"><input type="checkbox" id="strip-numbers"> Remove numbers from the front of file names (01 - Track 8 → Track 8)</label>
     <div id="bulk" class="bulk" hidden>
       <button type="button" id="save-files" class="primary">Save all files</button>
       <button type="button" id="download-all">Download all as ZIP</button>
