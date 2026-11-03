@@ -4,7 +4,7 @@ import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
-import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261030-chapter-fix';
+import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261103-drop-anywhere';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;
@@ -657,9 +657,24 @@ for (const drop of $$('.drop')) {
     droppedFiles(e.dataTransfer).then(handle);
   });
 }
-// Dropping outside the box shouldn't navigate away from the page.
-window.addEventListener('dragover', (e) => e.preventDefault());
-window.addEventListener('drop', (e) => e.preventDefault());
+// Files can be dropped anywhere on the page: they go to the drop box of the tab that is open.
+// (Dropping on the box itself is handled above; anything else must not navigate away from the page.)
+const activeDrop = () => $$('.drop').find((d) => !d.closest('[role="tabpanel"]').hidden);
+const hasFiles = (e) => [...(e.dataTransfer?.types ?? [])].includes('Files');
+const clearOver = () => $$('.drop.over').forEach((d) => d.classList.remove('over'));
+window.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  if (hasFiles(e)) activeDrop()?.classList.add('over');
+});
+// Leaving the window (no element being entered) clears the highlight.
+window.addEventListener('dragleave', (e) => { if (!e.relatedTarget) clearOver(); });
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  clearOver();
+  if (e.target.closest?.('.drop') || !hasFiles(e)) return;
+  const drop = activeDrop();
+  if (drop) droppedFiles(e.dataTransfer).then((items) => HANDLE[drop.dataset.mode](inOrder(items)));
+});
 
 for (const tab of $$('[role="tab"]')) {
   tab.addEventListener('click', () => {

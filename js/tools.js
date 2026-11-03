@@ -200,7 +200,7 @@ function readTracks(files, progress) {
     for (let i = 0; i < files.length; i++) {
       progress?.(`Reading ${files[i].name} (${i + 1} of ${files.length})…`, i / files.length);
       const info = await job.probe(job.inputs[i]);
-      if (!info.audio) throw new Error(`${files[i].name} has no sound track, so it can't be joined.`);
+      if (!info.audio) throw new Error(`Couldn't read the sound in ${files[i].name}, so it can't be joined.${info.problem ? ` ffmpeg said: ${info.problem}` : ''}`);
       infos.push(info.audio);
       durations.push(info.duration);
     }
@@ -315,7 +315,7 @@ export async function joinAudiobook(files, progress, { title = '', author = '', 
     for (let i = 0; i < n; i++) {
       progress?.(`Reading ${files[i].name} (${i + 1} of ${n})…`, i / n);
       const info = await job.probe(job.inputs[i]);
-      if (!info.audio) throw new Error(`${files[i].name} has no sound track, so it can't be joined.`);
+      if (!info.audio) throw new Error(`Couldn't read the sound in ${files[i].name}, so it can't be joined.${info.problem ? ` ffmpeg said: ${info.problem}` : ''}`);
       infos.push(info.audio);
       durations.push(info.duration);
     }
