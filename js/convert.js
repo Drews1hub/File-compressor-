@@ -1,4 +1,4 @@
-import { ext, baseName, kindOf, canvasToBlob, fmtDuration } from './util.js';
+import { ext, baseName, withoutNumber, kindOf, canvasToBlob, fmtDuration } from './util.js';
 import { decodeImage, encodeImageAs } from './images.js';
 import { withPdf, renderPage, pageText } from './pdf.js';
 import { ffmpegJob } from './engine.js';
@@ -128,7 +128,7 @@ function convertMedia(file, to, progress, tags = {}) {
 
     if (AUDIO_ARGS[to]) {
       if (!audio) throw new Error('This file has no sound track to convert.');
-      const blob = await job.encode(['-i', job.input, '-map', '0:a:0', ...AUDIO_ARGS[to], ...batchTags(tags, baseName(file.name)),
+      const blob = await job.encode(['-i', job.input, '-map', '0:a:0', ...AUDIO_ARGS[to], ...batchTags(tags, tags.stripNumbers ? withoutNumber(baseName(file.name)) : baseName(file.name)),
         // M4B is flagged as an audiobook (media type 2, M4B file type) so iTunes puts it under Audiobooks.
         ...(to === 'm4b' ? ['-metadata', 'media_type=2', '-metadata', 'genre=Audiobook', '-brand', 'M4B '] : [])], to, MIME[to], opts);
       return { outputs: [{ blob, name }], note: video ? 'Sound track only — the picture was dropped.' : '' };

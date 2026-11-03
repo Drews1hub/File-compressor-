@@ -1,10 +1,10 @@
 import { cancelUnpack } from './js/unpack.js';
-import { MB, fmt, kindOf } from './js/util.js';
+import { MB, fmt, kindOf, withoutNumber } from './js/util.js';
 import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
-import { TOOLS, withoutNumber, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261103-strip-numbers';
+import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261103-strip-titles';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;
@@ -336,7 +336,7 @@ function convertFile(file, row = makeRow(file), lastTo = '', batch = { i: 0, n: 
         // The batch's title and author (the boxes above the drop area) go into every audio file;
         // each file's own name is its track title, numbered by its place in the batch.
         const res = await convert(file, to, progress, {
-          title: $('#convert-title').value, author: $('#convert-author').value, track: batch.i + 1, tracks: batch.n,
+          title: $('#convert-title').value, author: $('#convert-author').value, track: batch.i + 1, tracks: batch.n, stripNumbers: $('#strip-numbers').checked,
         });
         res.summary = `Done — converted to ${FORMAT_LABELS[to]}.`;
         return res;
@@ -515,7 +515,7 @@ $('#tool-make').addEventListener('click', () => {
     const title = $('#book-title').value;
     const author = $('#book-author').value;
     const row = makeRow({ name: `${title.trim() || 'audiobook'}.m4b`, size: total });
-    enqueue(row, (progress) => joinAudiobook(files, progress, { title, author, separate: $('#book-output').value === 'tracks', chapterNames: $('#book-chapter-names').value }));
+    enqueue(row, (progress) => joinAudiobook(files, progress, { title, author, separate: $('#book-output').value === 'tracks', chapterNames: $('#book-chapter-names').value, stripNumbers: $('#strip-numbers').checked }));
   } else if (tool === 'merge-pdf') {
     const row = makeRow({ name: 'merged.pdf', size: total });
     enqueue(row, async (progress) => {

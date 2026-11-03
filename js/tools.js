@@ -1,7 +1,7 @@
 import { unpack, MAX_ARCHIVE_BYTES } from './unpack.js';
 import { chapterPlan } from './chapters.js?v=20261030-chapter-fix';
 // The "File tools" tab: trim, merge/split PDFs, photos → PDF, rotate/resize photos, open archives.
-import { ext, baseName, fmt, fmtDuration, kindOf, canvasToBlob, makeCanvas, loadScript, tick, VIDEO_EXT, AUDIO_EXT } from './util.js';
+import { ext, baseName, withoutNumber, fmt, fmtDuration, kindOf, canvasToBlob, makeCanvas, loadScript, tick, VIDEO_EXT, AUDIO_EXT } from './util.js';
 import { decodeImage, canEncode } from './images.js';
 import { ffmpegJob, openEngine } from './engine.js';
 import { audiobookTags } from './convert.js';
@@ -69,18 +69,6 @@ export function trimMedia(file, { start, end, exact }, progress) {
 }
 
 // ---------- audiobook join ----------
-
-// A name without the track numbers at its front ("01 - 01 - Name.mp3" → "Name.mp3"), so numbering a file that was
-// numbered before replaces the old number instead of stacking another one. Only 1–3 digits count as a number
-// (so "2001 A Space Odyssey" keeps its title), and a name that is nothing but a number is left alone.
-export function withoutNumber(name) {
-  const base = baseName(name);
-  const extension = name.slice(base.length);
-  let stripped = base;
-  for (let next; (next = stripped.replace(/^\s*\d{1,3}(?:\s*[-._)]\s*|\s+)(?=\S)/, '')) !== stripped;) stripped = next;
-  return stripped.trim() ? stripped + extension : name;
-}
-
 
 // Chapter titles in FFMETADATA: these characters must be escaped with a backslash.
 const escapeMeta = (s) => s.replace(/[=;#\\\n]/g, '\\$&');
@@ -222,7 +210,7 @@ function readTracks(files, progress) {
 
 // One audiobook file per track, all tagged with the same album and numbered in order, so iTunes lists them as one
 // book you can open to see every track. AAC tracks are copied as they are; others are re-encoded to AAC 192k.
-async function separateTracks(files, progress, title, author) {
+async function separateTracks(files, progress, title, author, stripNumbers = false) {
   const n = files.length;
   const book = title || 'Audiobook';
   // iTunes groups tracks by album artist, so the author goes there; without one, the book title stands in.
@@ -231,7 +219,7 @@ async function separateTracks(files, progress, title, author) {
   const blobs = await encodeEach(files, durations, total, progress, encodeWorkers(n), (i, job) => ({
     args: ['-i', job.input, '-map', '0:a:0',
       ...(infos[i].codec === 'aac' ? ['-c:a', 'copy'] : ['-af', TO_STEREO_44K, '-c:a', 'aac', '-b:a', '192k']),
-      '-metadata', `title=${baseName(files[i].name)}`, '-metadata', `album=${book}`, '-metadata', `artist=${artist}`,
+      '-metadata', `title=${stripNumbers ? withoutNumber(baseName(files[i].name)) : baseName(files[i].name)}`, '-metadata', `album=${book}`, '-metadata', `artist=${artist}`,
       '-metadata', `album_artist=${artist}`,
       '-metadata', `track=${i + 1}/${n}`, '-metadata', 'media_type=2', '-metadata', 'genre=Audiobook',
       '-brand', 'M4B ', '-f', 'ipod'],
@@ -312,8 +300,8 @@ export async function splitAudiobook(file, { title = '', author = '' }, progress
 // Joins the tracks, in the order given, into one M4B. With several files the chapters follow the Chapter names
 // choice: one wherever the track numbering starts over, or one per file.
 // A single file keeps whatever chapters it already has.
-export async function joinAudiobook(files, progress, { title = '', author = '', separate = false, chapterNames = 'resets' } = {}) {
-  if (separate) return separateTracks(files, progress, title.trim(), author.trim());
+export async function joinAudiobook(files, progress, { title = '', author = '', separate = false, chapterNames = 'resets', stripNumbers = false } = {}) {
+  if (separate) return separateTracks(files, progress, title.trim(), author.trim(), stripNumbers);
   const book = audiobookTags(title, 'audiobook', author);
   book.chapterNames = chapterNames;
   const n = files.length;
