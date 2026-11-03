@@ -10,7 +10,7 @@
   <script src="vendor/polyfills.js"></script>
   <script src="vendor/jspdf.umd.min.js"></script>
   <script src="vendor/fflate.min.js"></script>
-  <script type="module" src="app.js?v=20261103-drop-anywhere"></script>
+  <script type="module" src="app.js?v=20261103-keep-names"></script>
 </head>
 <body>
   <nav class="topbar">
@@ -321,7 +321,7 @@
       <button type="button" id="download-all">Download all as ZIP</button>
       <button type="button" id="redo-all" hidden title="Run every finished file again with the current settings">Redo all</button>
       <button type="button" id="clear-results">Clear list</button>
-      <label class="check" id="number-label"><input type="checkbox" id="number-files" checked> Number files in list order (01, 02, …)</label>
+      <label class="check" id="number-label"><input type="checkbox" id="number-files"> Number files in list order (01, 02, …)</label>
     </div>
     <ul id="results" class="results"></ul>
 
