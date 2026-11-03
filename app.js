@@ -4,7 +4,7 @@ import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
-import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261103-drop-anywhere';
+import { TOOLS, withoutNumber, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261103-no-double-numbers';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;
@@ -549,7 +549,7 @@ function orderedOutputs() {
   const number = $('#number-files').checked;
   const used = new Set();
   return ordered.map(({ name, blob }, i) => {
-    let path = number ? `${String(i + 1).padStart(width, '0')} - ${name}` : name;
+    let path = number ? `${String(i + 1).padStart(width, '0')} - ${withoutNumber(name)}` : name;
     // Without numbers two rows can share a name; don't let one overwrite the other.
     for (let n = 2; used.has(path.toLowerCase()); n++) path = name.replace(/(\.[^.]*)?$/, ` (${n})$1`);
     used.add(path.toLowerCase());

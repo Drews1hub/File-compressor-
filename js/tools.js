@@ -70,6 +70,18 @@ export function trimMedia(file, { start, end, exact }, progress) {
 
 // ---------- audiobook join ----------
 
+// A name without the track numbers at its front ("01 - 01 - Name.mp3" → "Name.mp3"), so numbering a file that was
+// numbered before replaces the old number instead of stacking another one. Only 1–3 digits count as a number
+// (so "2001 A Space Odyssey" keeps its title), and a name that is nothing but a number is left alone.
+export function withoutNumber(name) {
+  const base = baseName(name);
+  const extension = name.slice(base.length);
+  let stripped = base;
+  for (let next; (next = stripped.replace(/^\s*\d{1,3}(?:\s*[-._)]\s*|\s+)(?=\S)/, '')) !== stripped;) stripped = next;
+  return stripped.trim() ? stripped + extension : name;
+}
+
+
 // Chapter titles in FFMETADATA: these characters must be escaped with a backslash.
 const escapeMeta = (s) => s.replace(/[=;#\\\n]/g, '\\$&');
 
@@ -230,7 +242,7 @@ async function separateTracks(files, progress, title, author) {
   return {
     outputs: blobs.map((blob, i) => ({
       blob,
-      name: `${String(i + 1).padStart(digits, '0')} ${audiobookTags(baseName(files[i].name)).file}`,
+      name: `${String(i + 1).padStart(digits, '0')} ${audiobookTags(withoutNumber(baseName(files[i].name))).file}`,
     })),
     summary: `Done — ${n} track${n === 1 ? '' : 's'}, listed together as "${book}".`,
     note: 'Each track is its own file, numbered in order, so iTunes shows them as one book. Add them all to iTunes together.',
@@ -290,7 +302,7 @@ export async function splitAudiobook(file, { title = '', author = '' }, progress
   }));
   const digits = Math.max(2, String(n).length);
   return {
-    outputs: blobs.map((blob, i) => ({ blob, name: `${String(i + 1).padStart(digits, '0')} ${audiobookTags(trackTitle(i)).file}` })),
+    outputs: blobs.map((blob, i) => ({ blob, name: `${String(i + 1).padStart(digits, '0')} ${audiobookTags(withoutNumber(trackTitle(i))).file}` })),
     summary: `Done — ${n} tracks, listed together as "${book}".`,
     note: `Cut at the ${n} chapter markers. ${codec === 'aac' ? 'The audio was copied as it is, so quality is unchanged.' : 'Re-encoded to AAC 192k.'} Add all the files to iTunes together.`,
   };
