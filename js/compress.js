@@ -2,7 +2,7 @@ import { unpack } from './unpack.js';
 import { ext, baseName, fmt, fmtDuration, tick, canvasToBlob, drawToCanvas } from './util.js';
 import { decodeImage, encodeImageUnder, pickImageType, typeExt, typeLabel } from './images.js';
 import { withPdf, renderPage } from './pdf.js';
-import { ffmpegJob } from './engine.js';
+import { ffmpegJob } from './engine.js?v=20261104-engine-v';
 
 // Every compressor takes (file, opts, progress). opts:
 //   mode:        'size' (fit under opts.target bytes) or 'level' (use the opts.level strength)
