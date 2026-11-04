@@ -144,6 +144,11 @@ const TO_STEREO_44K = 'aresample=44100,aformat=sample_fmts=fltp:channel_layouts=
 // How many engines to encode with at once: one core is left for the page, and four is plenty.
 const encodeWorkers = (tracks) => Math.min(tracks, 4, Math.max(1, (navigator.hardwareConcurrency || 2) - 1));
 
+// Each engine holds its whole output in memory, so files this big are done one at a time: several at once
+// can run a computer with little memory out of room (a 580 MB book in three parts did on an older Mac).
+const BIG_FILE = 100 * 1024 * 1024;
+const workersFor = (files) => (files.some((f) => f.size > BIG_FILE) ? 1 : encodeWorkers(files.length));
+
 // Runs ffmpeg on every file, several at a time on separate engines, and returns the outputs in order.
 // `buildArgs(i, job)` gives { args, ext, type } for file i. Each file is encoded once, on its own engine.
 async function encodeEach(files, durations, total, progress, workers, buildArgs) {
@@ -216,7 +221,7 @@ async function separateTracks(files, progress, title, author, stripNumbers = fal
   // iTunes groups tracks by album artist, so the author goes there; without one, the book title stands in.
   const artist = author || book;
   const { durations, infos, total } = await readTracks(files, progress);
-  const blobs = await encodeEach(files, durations, total, progress, encodeWorkers(n), (i, job) => ({
+  const blobs = await encodeEach(files, durations, total, progress, workersFor(files), (i, job) => ({
     args: ['-i', job.input, '-map', '0:a:0',
       ...(infos[i].codec === 'aac' ? ['-c:a', 'copy'] : ['-af', TO_STEREO_44K, '-c:a', 'aac', '-b:a', '192k']),
       '-metadata', `title=${stripNumbers ? withoutNumber(baseName(files[i].name)) : baseName(files[i].name)}`, '-metadata', `album=${book}`, '-metadata', `artist=${artist}`,
@@ -334,7 +339,7 @@ export async function joinAudiobook(files, progress, { title = '', author = '', 
   if (pass.result) return pass.result;
 
   // Pass 2: encode the tracks several at a time, then join the finished pieces without encoding again.
-  const parts = await encodeTracks(files, pass.durations, pass.total, progress, encodeWorkers(n));
+  const parts = await encodeTracks(files, pass.durations, pass.total, progress, workersFor(files));
   return ffmpegJob(parts, progress, async (job) => {
     // Chapter times come from the encoded pieces, which are a few milliseconds longer than the originals.
     const durations = [];
