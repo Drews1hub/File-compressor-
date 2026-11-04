@@ -120,6 +120,8 @@ export async function ffmpegJob(file, progress, fn, { engine } = {}) {
   const inputs = files.map((f) => `${dir}/${f.name}`);
   const input = inputs[0];
   const outputs = [];
+  // ffmpeg's last few lines, so a crash can say what it was doing.
+  const recent = [];
   const scratch = [];
 
   async function run(args, { duration = 0, label = 'Working' } = {}) {
@@ -128,6 +130,7 @@ export async function ffmpegJob(file, progress, fn, { engine } = {}) {
     const onLog = ({ message }) => {
       lastActivity = Date.now();
       logs.push(message);
+      if (message.trim() && !/time=|size=/.test(message)) { recent.push(message.trim()); if (recent.length > 3) recent.shift(); }
       if (logs.length > 300) logs.shift();
       const t = /time=\s*(\d+):(\d+):([\d.]+)/.exec(message);
       if (t && duration) {
@@ -192,10 +195,15 @@ export async function ffmpegJob(file, progress, fn, { engine } = {}) {
     return await fn(job);
   } catch (e) {
     if (cancelled) throw new Error('Cancelled.');
-    // An out-of-memory abort leaves the engine unusable, so start fresh next time.
-    if (/abort|memory|terminate|RuntimeError/i.test(String(e?.message ?? e))) {
+    // A crash (out of memory or any other abort) leaves the engine unusable, so start fresh next time.
+    // The message keeps the real error and ffmpeg's last words, so the cause can be told apart.
+    const raw = String(e?.message ?? e);
+    if (/abort|memory|terminate|RuntimeError/i.test(raw)) {
       if (engine) engine.close(); else resetEngine();
-      throw new Error('Ran out of memory. Try a shorter file, or close other tabs and try again.');
+      const detail = ` (${raw}${recent.length ? `; ffmpeg said: ${recent.join(' / ')}` : ''})`;
+      throw new Error(/memory|OOM|enlarge/i.test(raw)
+        ? `Ran out of memory. Try a shorter file, or close other tabs and try again.${detail}`
+        : `The converter stopped unexpectedly.${detail}`);
     }
     throw e;
   } finally {
