@@ -24,3 +24,6 @@
 - To ship: merge the default branch into the working branch, push, open a PR into the default branch, merge it. Pages caches about 10 minutes (hard refresh Cmd+Shift+R).
 - Tests: `npm ci` then `npm test`. Browser checks: Playwright (`NODE_PATH=$(npm root -g)`) against `python3 -m http.server`. Don't use `pkill -f` with a pattern that appears in your own command (exit 144); use `[h]ttp.server`.
 - Tool tabs use cards (`data-tool-choice`), not the hidden `#tool` select.
+
+**Also open (added last):**
+- Book 5 ("The Libyan Diversion", 580 MB of parts) failed with "Ran out of memory." The join writes the whole book into ffmpeg's in-memory file and then copies it again, so a book of roughly 500 MB or more can't be joined in the browser. Options given to the user: join fewer parts at a time, keep the parts separate (same album, track tags), or use a Mac app. Possible real fix, not started and not yet agreed: join M4B parts without loading them (rebuild the MP4 index and stitch the audio from the source files as lazy Blob slices, never in memory). It is a large job, so ask before building.
