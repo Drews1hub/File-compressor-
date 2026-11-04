@@ -3,7 +3,7 @@ import { chapterPlan } from './chapters.js?v=20261030-chapter-fix';
 // The "File tools" tab: trim, merge/split PDFs, photos → PDF, rotate/resize photos, open archives.
 import { ext, baseName, withoutNumber, fmt, fmtDuration, kindOf, canvasToBlob, makeCanvas, loadScript, tick, VIDEO_EXT, AUDIO_EXT } from './util.js';
 import { decodeImage, canEncode } from './images.js';
-import { ffmpegJob, openEngine } from './engine.js';
+import { ffmpegJob, openEngine } from './engine.js?v=20261104-engine-v';
 import { audiobookTags } from './convert.js';
 
 let pdfLibReady = null;

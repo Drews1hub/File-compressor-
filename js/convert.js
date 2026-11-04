@@ -1,7 +1,7 @@
 import { ext, baseName, withoutNumber, kindOf, canvasToBlob, fmtDuration } from './util.js';
 import { decodeImage, encodeImageAs } from './images.js';
 import { withPdf, renderPage, pageText } from './pdf.js';
-import { ffmpegJob } from './engine.js';
+import { ffmpegJob } from './engine.js?v=20261104-engine-v';
 import { ocrConvert } from './ocr.js';
 import { convertBook } from './ebook.js';
 import { convertCad } from './cad.js';

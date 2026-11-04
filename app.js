@@ -2,9 +2,9 @@ import { cancelUnpack } from './js/unpack.js';
 import { MB, fmt, kindOf, withoutNumber } from './js/util.js';
 import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
-import { cancelEngine } from './js/engine.js';
+import { cancelEngine } from './js/engine.js?v=20261104-engine-v';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
-import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261104-one-at-a-time';
+import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261104-engine-v';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;

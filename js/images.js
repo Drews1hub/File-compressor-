@@ -1,5 +1,5 @@
 import { ext, canvasToBlob, makeCanvas, drawToCanvas, loadScript } from './util.js';
-import { ffmpegJob } from './engine.js';
+import { ffmpegJob } from './engine.js?v=20261104-engine-v';
 
 let heicReady = null;
 const loadHeic = () => {
