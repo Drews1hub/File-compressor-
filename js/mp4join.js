@@ -94,6 +94,14 @@ function audioFormat(buf, stsd) {
   return `${format}|${channels}|${rate}|${asc}`;
 }
 
+// "44.1 kHz stereo AAC" from an audioFormat() string, for messages.
+function describeFormat(format) {
+  const [, channels, rate, asc] = format.split('|');
+  const kind = { 5: 'HE-AAC', 29: 'HE-AAC v2' }[Number(asc.split(',')[0]) >> 3] ?? 'AAC';
+  const layout = { 1: 'mono', 2: 'stereo' }[channels] ?? `${channels}-channel`;
+  return `${Number(rate) / 1000} kHz ${layout} ${kind}`;
+}
+
 // Reads one file's audio track: its sample tables, the byte ranges its audio sits in, and its cover art.
 async function readTrack(file) {
   const tops = await topBoxes(file);
@@ -303,7 +311,11 @@ export async function joinMp4Audio(files, { chapters = [], title = '', author = 
   }
   const first = tracks[0];
   const odd = tracks.findIndex((t) => t.format !== first.format || t.timescale !== first.timescale);
-  if (odd > 0) throw new NotJoinable(`${files[odd].name} has a different audio format from ${files[0].name}.`);
+  if (odd > 0) {
+    const a = describeFormat(first.format);
+    const b = describeFormat(tracks[odd].format);
+    throw new NotJoinable(`"${files[odd].name}" is ${b === a ? 'encoded with different AAC settings' : b}, but "${files[0].name}" is ${a}. Parts can only be stitched together when they all match.`);
+  }
 
   // Joined sample tables, file after file.
   const timeRuns = tracks.flatMap((t) => t.timeRuns);
