@@ -4,7 +4,7 @@ import { chapterPlan } from './chapters.js?v=20261030-chapter-fix';
 import { ext, baseName, withoutNumber, fmt, fmtDuration, kindOf, canvasToBlob, makeCanvas, loadScript, tick, VIDEO_EXT, AUDIO_EXT } from './util.js';
 import { decodeImage, canEncode } from './images.js';
 import { ffmpegJob, openEngine } from './engine.js?v=20261104-engine-v';
-import { joinMp4Audio, NotJoinable } from './mp4join.js?v=20261105-stitch';
+import { joinMp4Audio, NotJoinable } from './mp4join.js?v=20261105-why-refused';
 import { audiobookTags } from './convert.js';
 
 let pdfLibReady = null;
@@ -316,6 +316,7 @@ export async function joinAudiobook(files, progress, { title = '', author = '', 
 
   // M4B/M4A parts in one AAC format are stitched together directly: no ffmpeg, almost no memory, any size.
   // Anything else (MP3s, mixed formats, unusual files) goes on to the ffmpeg join below.
+  let refusal = '';
   if (n > 1) {
     try {
       const joined = await joinMp4Audio(files, { chapters: book.chapters, title, author }, progress);
@@ -326,8 +327,15 @@ export async function joinAudiobook(files, progress, { title = '', author = '', 
       };
     } catch (e) {
       if (!(e instanceof NotJoinable)) throw e;
+      refusal = e.message;
     }
   }
+  // The ffmpeg join holds the whole book in memory and can't cope with books this big: say why instead of stalling.
+  const bytes = files.reduce((s, f) => s + f.size, 0);
+  if (refusal && bytes > 1024 ** 3) {
+    throw new Error(`These can't be joined into one file: ${refusal} At this size (${fmt(bytes)}) only matching parts can be joined. Join the matching files as their own book, or choose "Separate tracks".`);
+  }
+  if (refusal) progress?.(`Can't stitch these directly, so converting them instead. ${refusal}`);
 
   // Pass 1: read every track. If they are all AAC in one format they are copied straight in (lossless, seconds).
   // A single track, or a computer with no spare core, is re-encoded here; anything else goes on to pass 2.
