@@ -4,6 +4,7 @@ import { chapterPlan } from './chapters.js?v=20261030-chapter-fix';
 import { ext, baseName, withoutNumber, fmt, fmtDuration, kindOf, canvasToBlob, makeCanvas, loadScript, tick, VIDEO_EXT, AUDIO_EXT } from './util.js';
 import { decodeImage, canEncode } from './images.js';
 import { ffmpegJob, openEngine } from './engine.js?v=20261104-engine-v';
+import { joinMp4Audio, NotJoinable } from './mp4join.js?v=20261105-stitch';
 import { audiobookTags } from './convert.js';
 
 let pdfLibReady = null;
@@ -312,6 +313,21 @@ export async function joinAudiobook(files, progress, { title = '', author = '', 
   const n = files.length;
   // Worked out before any audio is read, so a file name without a track number is reported straight away.
   book.chapters = n > 1 ? chapterPlan(files.map((f) => f.name), chapterNames) : [];
+
+  // M4B/M4A parts in one AAC format are stitched together directly: no ffmpeg, almost no memory, any size.
+  // Anything else (MP3s, mixed formats, unusual files) goes on to the ffmpeg join below.
+  if (n > 1) {
+    try {
+      const joined = await joinMp4Audio(files, { chapters: book.chapters, title, author }, progress);
+      return {
+        outputs: [{ blob: joined.blob, name: book.file }],
+        summary: joinSummary(n, joined.duration, book),
+        note: `Audio copied as-is, so quality is unchanged.${chapterNote(book)}`,
+      };
+    } catch (e) {
+      if (!(e instanceof NotJoinable)) throw e;
+    }
+  }
 
   // Pass 1: read every track. If they are all AAC in one format they are copied straight in (lossless, seconds).
   // A single track, or a computer with no spare core, is re-encoded here; anything else goes on to pass 2.
