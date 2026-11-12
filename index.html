@@ -10,7 +10,7 @@
   <script src="vendor/polyfills.js"></script>
   <script src="vendor/jspdf.umd.min.js"></script>
   <script src="vendor/fflate.min.js"></script>
-  <script type="module" src="app.js?v=20261105-why-refused"></script>
+  <script type="module" src="app.js?v=20261112-two-sided"></script>
 </head>
 <body>
   <nav class="topbar">
@@ -177,6 +177,7 @@
             <option value="merge-pdf">Merge PDFs into one</option>
             <option value="split-pdf">Split a PDF into parts</option>
             <option value="photos-pdf">Turn photos into one PDF</option>
+            <option value="two-sided">Put two pages on one double-sided sheet</option>
             <option value="photo-edit">Rotate, flip or resize photos</option>
             <option value="extract">Open a ZIP or TAR.GZ</option>
           </select>
@@ -188,8 +189,9 @@
           <button type="button" class="tool-card" data-tool-choice="merge-pdf" aria-pressed="false"><span class="tool-number" aria-hidden="true">04</span><strong>Merge PDFs</strong><span>One document, all your pages</span></button>
           <button type="button" class="tool-card" data-tool-choice="split-pdf" aria-pressed="false"><span class="tool-number" aria-hidden="true">05</span><strong>Split PDF</strong><span>Pick pages or separate them</span></button>
           <button type="button" class="tool-card" data-tool-choice="photos-pdf" aria-pressed="false"><span class="tool-number" aria-hidden="true">06</span><strong>Photos to PDF</strong><span>Turn pictures into a document</span></button>
-          <button type="button" class="tool-card" data-tool-choice="photo-edit" aria-pressed="false"><span class="tool-number" aria-hidden="true">07</span><strong>Edit photos</strong><span>Rotate, flip and resize</span></button>
-          <button type="button" class="tool-card" data-tool-choice="extract" aria-pressed="false"><span class="tool-number" aria-hidden="true">08</span><strong>Extract archive</strong><span>Open ZIP and TAR.GZ files</span></button>
+          <button type="button" class="tool-card" data-tool-choice="two-sided" aria-pressed="false"><span class="tool-number" aria-hidden="true">07</span><strong>Two-sided page</strong><span>Front and back on one sheet</span></button>
+          <button type="button" class="tool-card" data-tool-choice="photo-edit" aria-pressed="false"><span class="tool-number" aria-hidden="true">08</span><strong>Edit photos</strong><span>Rotate, flip and resize</span></button>
+          <button type="button" class="tool-card" data-tool-choice="extract" aria-pressed="false"><span class="tool-number" aria-hidden="true">09</span><strong>Extract archive</strong><span>Open ZIP and TAR.GZ files</span></button>
         </div>
 
         <div class="tool-opts option-grid" data-tool="trim">
@@ -241,6 +243,19 @@
             <option value="fit">Same as each photo</option>
             <option value="a4">A4</option>
             <option value="letter">US Letter</option>
+          </select>
+        </div>
+
+        <div class="tool-opts option-grid" data-tool="two-sided" hidden>
+          <label for="duplex-layout">Layout</label>
+          <select id="duplex-layout">
+            <option value="duplex" selected>Front and back (print double-sided)</option>
+            <option value="side-by-side">Side by side on one page</option>
+          </select>
+          <label for="duplex-page">Paper</label>
+          <select id="duplex-page">
+            <option value="letter" selected>US Letter</option>
+            <option value="a4">A4</option>
           </select>
         </div>
 

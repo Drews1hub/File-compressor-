@@ -11,7 +11,8 @@ A free file compressor and converter that runs entirely in your web browser. You
   a maximum video resolution, and whether to remove the sound from videos.
 - **Convert** changes a file's format: images, video, audio, PDFs, scans (OCR), e-books and CAD files.
 - **Tools**: trim a video or audio clip, merge PDFs, split a PDF (every page or chosen ranges, text stays selectable),
-  turn photos into one PDF (fit, A4 or Letter), rotate / flip / resize photos, and open ZIP or TAR.GZ archives.
+  turn photos into one PDF (fit, A4 or Letter), put two pages (PDFs or scans) on one double-sided sheet
+  (front and back, set to print on both sides, or side by side on one page), rotate / flip / resize photos, and open ZIP or TAR.GZ archives.
 - **Zip** bundles files or whole folders (structure kept) into a ZIP or TAR.GZ.
 - **Save all files** saves every result as its own file (MP3s stay MP3s, no unzipping). In Chrome and Edge you
   pick a folder once and they're all written into it; other browsers download them one after another.
@@ -74,7 +75,7 @@ It's just static files, so there's no build step.
 - `js/compress.js`, `js/convert.js`: what happens to each file type
 - `js/engine.js`: wrapper around ffmpeg.wasm (video, audio, unusual image formats)
 - `js/archive.js`: ZIP / TAR.GZ writing and reading dropped folders
-- `js/tools.js`: the Tools tab (trim, PDF merge/split, photos → PDF, photo edits, opening archives)
+- `js/tools.js`: the Tools tab (trim, PDF merge/split, photos → PDF, two-sided page, photo edits, opening archives)
 - `js/ocr.js`: scans to searchable PDF or text (Tesseract)
 - `js/ebook.js`: reading and writing EPUB / MOBI / AZW3 / FB2 / text / PDF books
 - `js/cad.js`: DXF / DWG drawings and STL / OBJ / STEP / IGES 3D models
