@@ -1,10 +1,10 @@
 import { cancelUnpack } from './js/unpack.js';
-import { MB, fmt, kindOf, withoutNumber } from './js/util.js';
+import { MB, fmt, kindOf, withoutNumber, baseName } from './js/util.js';
 import { COMPRESSORS } from './js/compress.js';
 import { convert, targetsFor, FORMAT_LABELS } from './js/convert.js';
 import { cancelEngine } from './js/engine.js?v=20261104-engine-v';
 import { makeZip, makeTarGz, droppedFiles } from './js/archive.js';
-import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, editPhoto, extractArchive } from './js/tools.js?v=20261105-why-refused';
+import { TOOLS, parseTime, trimMedia, joinAudiobook, splitAudiobook, mergePdfs, splitPdf, photosToPdf, twoSidedPdf, editPhoto, extractArchive } from './js/tools.js?v=20261112-two-sided';
 
 // Aim a little under the limit so rounding on the upload side never tips a file over.
 const SAFETY = 0.97;
@@ -415,6 +415,7 @@ const TOOL_TEXT = {
   'merge-pdf': ['Drop the PDFs to merge', 'Pages keep their text and quality. Put the list in order, then merge.'],
   'split-pdf': ['Drop a PDF to split', 'Every part keeps its text selectable.'],
   'photos-pdf': ['Drop the photos for your PDF', 'One photo per page, in the order listed. iPhone HEIC photos work too.'],
+  'two-sided': ['Drop the front and back pages', 'PDFs or photos/scans of the pages, front first. "Front and back" makes a PDF set to print on both sides of one sheet; "Side by side" puts both pages on one page. Text in PDF pages stays sharp.'],
   'photo-edit': ['Drop photos to edit', 'Every photo you drop gets the same changes.'],
   extract: ['Drop a ZIP or TAR.GZ to open', 'Each file inside gets its own download button.'],
 };
@@ -456,6 +457,7 @@ function renderToolList() {
   const makeLabel = {
     'join-audio': `Join ${n} file${n === 1 ? '' : 's'} into one audiobook`,
     'merge-pdf': `Merge ${n} PDF${n === 1 ? '' : 's'}`,
+    'two-sided': n < 2 ? 'Add the back page too' : 'Make the two-sided PDF',
   };
   $('#tool-make').textContent = makeLabel[tool] ?? `Make a PDF from ${n} photo${n === 1 ? '' : 's'}`;
 }
@@ -521,6 +523,19 @@ $('#tool-make').addEventListener('click', () => {
     enqueue(row, async (progress) => {
       const { blob, pages } = await mergePdfs(files, progress);
       return { outputs: [{ blob, name: 'merged.pdf' }], summary: `Done — ${files.length} PDFs, ${pages} pages in total.`, note: '' };
+    });
+  } else if (tool === 'two-sided') {
+    const layout = $('#duplex-layout').value;
+    const page = $('#duplex-page').value;
+    const name = `${baseName(files[0].name)}-two-sided.pdf`;
+    const row = makeRow({ name, size: total });
+    enqueue(row, async (progress) => {
+      const { blob, sides, sheets } = await twoSidedPdf(files, { layout, page }, progress);
+      const s = sheets === 1 ? 'one sheet' : `${sheets} sheets`;
+      return layout === 'side-by-side'
+        ? { outputs: [{ blob, name }], summary: `Done — ${sides} pages side by side on ${sheets === 1 ? 'one page' : `${sheets} pages`}.`, note: '' }
+        : { outputs: [{ blob, name }], summary: `Done — ${sides} sides on ${s}.`,
+          note: 'The PDF is set to print double-sided. If your printer asks, choose "Two-sided" and "Flip on long edge".' };
     });
   } else {
     const page = $('#pdf-page').value;

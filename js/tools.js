@@ -22,6 +22,7 @@ export const TOOLS = {
   'merge-pdf': { accepts: (f) => kindOf(f) === 'pdf', multi: true, what: 'PDFs' },
   'split-pdf': { accepts: (f) => kindOf(f) === 'pdf', multi: false, what: 'PDFs' },
   'photos-pdf': { accepts: (f) => kindOf(f) === 'image', multi: true, what: 'photos' },
+  'two-sided': { accepts: (f) => ['pdf', 'image'].includes(kindOf(f)), multi: true, what: 'PDFs or photos of pages' },
   'photo-edit': { accepts: (f) => kindOf(f) === 'image', multi: false, what: 'photos' },
   extract: { accepts: (f) => /\.(zip|tar|tgz|tar\.gz|gz)$/i.test(f.name), multi: false, what: 'ZIP, TAR or TAR.GZ archives' },
 };
@@ -475,6 +476,72 @@ export async function photosToPdf(files, { page }, progress) {
     await tick();
   }
   return doc.output('blob');
+}
+
+// ---------- two-sided page ----------
+
+// Puts typed pages (PDF pages or photos/scans) on both sides of one sheet of paper.
+//  'duplex': page 1 is the front, page 2 the back, both the same paper size, and the PDF asks the printer to
+//            print on both sides (flip on long edge). A PDF can't hold two sides on one page; this is how it's done.
+//  'side-by-side': both pages next to each other on one landscape page.
+// Pages from PDFs are copied as-is (text stays sharp and selectable); photos are saved as JPEG.
+export async function twoSidedPdf(files, { layout, page }, progress) {
+  const PDFLib = await loadPdfLib();
+  const out = await PDFLib.PDFDocument.create();
+
+  // Every page from every file, in list order, as something pdf-lib can draw.
+  const pieces = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    progress?.(`Reading ${file.name} (${i + 1} of ${files.length})…`, (i / files.length) * 0.8);
+    if (kindOf(file) === 'pdf') {
+      const src = await loadPdf(PDFLib, file);
+      for (const p of await out.embedPages(src.getPages())) pieces.push({ obj: p, w: p.width, h: p.height, pdf: true });
+    } else {
+      const bitmap = await decodeImage(file, progress);
+      const canvas = makeCanvas(bitmap.width, bitmap.height);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close?.();
+      const jpeg = await out.embedJpg(new Uint8Array(await (await canvasToBlob(canvas, 'image/jpeg', 0.92)).arrayBuffer()));
+      canvas.width = canvas.height = 0;
+      pieces.push({ obj: jpeg, w: jpeg.width, h: jpeg.height, pdf: false });
+    }
+    await tick();
+  }
+  if (pieces.length < 2) throw new Error('Add both pages: the front and the back (two files, or one PDF with two pages).');
+
+  // Draws a piece scaled to fit (never stretched) and centred in the box.
+  const place = (target, piece, bx, by, bw, bh) => {
+    const s = Math.min(bw / piece.w, bh / piece.h);
+    const w = piece.w * s, h = piece.h * s;
+    const at = { x: bx + (bw - w) / 2, y: by + (bh - h) / 2, width: w, height: h };
+    if (piece.pdf) target.drawPage(piece.obj, at); else target.drawImage(piece.obj, at);
+  };
+
+  progress?.('Laying out the pages…', 0.85);
+  const [pw, ph] = PAGE_SIZES[page] ?? PAGE_SIZES.letter;
+  if (layout === 'side-by-side') {
+    // A landscape sheet split down the middle, one page in each half, a small gutter between.
+    const W = ph, H = pw, margin = 18;
+    for (let i = 0; i < pieces.length; i += 2) {
+      const sheet = out.addPage([W, H]);
+      const half = (W - 3 * margin) / 2;
+      place(sheet, pieces[i], margin, margin, half, H - 2 * margin);
+      if (pieces[i + 1]) place(sheet, pieces[i + 1], 2 * margin + half, margin, half, H - 2 * margin);
+    }
+  } else {
+    // Front and back on the same paper size, so they line up when printed double-sided.
+    for (const piece of pieces) place(out.addPage([pw, ph]), piece, 0, 0, pw, ph);
+    const prefs = out.catalog.getOrCreateViewerPreferences();
+    prefs.setDuplex(PDFLib.Duplex.DuplexFlipLongEdge);
+    prefs.setPrintScaling(PDFLib.PrintScaling.None);
+  }
+  progress?.('Saving…', 0.95);
+  const blob = new Blob([await out.save()], { type: 'application/pdf' });
+  return { blob, sides: pieces.length, sheets: Math.ceil(pieces.length / 2) };
 }
 
 // ---------- photos ----------
